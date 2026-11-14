@@ -10,7 +10,7 @@ description: Run DataBridge formatting, build and tests and produce the change r
 2. Run, in order, stopping to report on the first failure:
    - `dotnet format DataBridge.sln --verify-no-changes`
    - `dotnet build DataBridge.sln -warnaserror`
-   - `dotnet test DataBridge.sln --no-build`
+   - `dotnet test --solution DataBridge.sln --no-build`
    If integration tests need a SQL Server instance that is not
    available, run the other test projects, and report the integration
    tests as not run with the reason. Never point tests at a

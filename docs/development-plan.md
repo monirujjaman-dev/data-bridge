@@ -14,11 +14,15 @@ open decision it must close (`requirements.md` §10,
 
 ### Current status (2026-11-14)
 
-Phase 0 has not started: there is no solution or project file yet. The
-visual design system was drafted ahead of Phase 1: `DESIGN.md`,
-`PRODUCT.md`, theme resources in `src/DataBridge.Desktop/Themes/` and
-brand/font assets in `src/DataBridge.Desktop/Assets/`. Phase 0 must
-place these inside the new Desktop project rather than recreate them.
+Phase 0 is in progress. Done: solution and project structure, SDK pin,
+central package management, nullable/analyzer/formatting settings,
+architecture dependency tests, the CI workflow
+(`.github/workflows/ci.yml`: build and test on Windows, Linux and
+macOS), README and ADRs 0001--0008 in `docs/adr/`. The Desktop project wraps the visual
+design system drafted ahead of Phase 1 (`DESIGN.md`, `PRODUCT.md`,
+`src/DataBridge.Desktop/Themes/`, `src/DataBridge.Desktop/Assets/`) in a
+placeholder window. Remaining: a first green CI run on all three
+operating systems, which closes Phase 0's acceptance.
 
 ## 2. Phase 0 --- Repository bootstrap
 

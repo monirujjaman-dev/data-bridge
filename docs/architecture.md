@@ -1,6 +1,6 @@
 # DataBridge --- Architecture
 
-**Status:** Approved baseline (revision 2, 2026-11-14)\
+**Status:** Approved baseline (revision 3, 2026-11-14)\
 **Runtime:** .NET 10\
 **UI:** Avalonia\
 **Architecture:** Clean Architecture, modular monolith
@@ -80,7 +80,8 @@ DataBridge/
 │   ├── DataBridge.Infrastructure.Tests/
 │   ├── DataBridge.Desktop.Tests/
 │   ├── DataBridge.IntegrationTests/
-│   └── DataBridge.PerformanceTests/
+│   ├── DataBridge.PerformanceTests/
+│   └── DataBridge.ArchitectureTests/
 ├── benchmarks/
 │   └── DataBridge.Benchmarks/
 ├── scripts/
@@ -94,6 +95,9 @@ DataBridge/
 (for example, memory stays bounded while comparing a large table).
 `DataBridge.Benchmarks` holds BenchmarkDotNet measurements that are run
 on demand and produce reports, not pass/fail results.
+`DataBridge.ArchitectureTests` enforces the dependency rules in §4 by
+inspecting project files and compiled assemblies; it is the only test
+project that references several production projects.
 
 ## 3. Project responsibilities
 
@@ -396,7 +400,8 @@ There is no plaintext or obfuscated fallback.
 -   No automatic bidirectional sync in v1: conflict semantics require a
     separate design.
 
-Record each of these as an ADR in `docs/adr/` during Phase 0.
+Each of these is recorded as an ADR (0001--0008) in `docs/adr/`; see
+`docs/adr/README.md` for the index and how to add or supersede one.
 
 ## 16. Open design decisions
 
@@ -410,6 +415,9 @@ Record each of these as an ADR in `docs/adr/` during Phase 0.
 
 ## 17. Revision history
 
+-   **Revision 3 (2026-11-14):** added `DataBridge.ArchitectureTests`
+    to the solution structure; recorded §15 decisions as ADRs
+    0001--0008.
 -   **Revision 2 (2026-11-14):** fixed list formatting; aligned
     solution tree with the repository (`CLAUDE.md`, `PRODUCT.md`,
     `DESIGN.md`, `.claude/`); clarified PerformanceTests vs Benchmarks;

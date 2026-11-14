@@ -4,13 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current repository state
 
-The repository is pre-Phase 0: there is no solution or project file
-yet. Besides the design docs it holds the visual design system, drafted
-ahead of Phase 1: `PRODUCT.md`, `DESIGN.md`, theme resources in
-`src/DataBridge.Desktop/Themes/` and brand/font assets in
-`src/DataBridge.Desktop/Assets/`. Phase 0 must place these inside the
-new Desktop project rather than recreate them. Read these before
-implementing; they are the source of truth:
+Phase 0 is in progress. The solution and project structure exist and
+build; the projects contain no domain code yet. `DataBridge.Desktop` is
+a placeholder Avalonia window that loads the visual design system
+(`PRODUCT.md`, `DESIGN.md`, `src/DataBridge.Desktop/Themes/`,
+`src/DataBridge.Desktop/Assets/`), drafted ahead of Phase 1. Read these
+before implementing; they are the source of truth:
 
 -   `docs/requirements.md`: product scope, user journeys, acceptance
     criteria, v1.0 vs deferred features.
@@ -21,29 +20,46 @@ implementing; they are the source of truth:
 -   `docs/development-plan.md`: phased delivery (Phase 0 bootstrap →
     Phase 8 release) with per-phase acceptance criteria. Work the
     current phase; don't build UI ahead of the use cases behind it.
+-   `docs/adr/`: architecture decision records. Add one when changing
+    approved architecture; supersede rather than rewrite.
 
 This file fills the `AGENTS.md` role (agent/contributor instructions).
 Terms such as *write target* are defined in `docs/requirements.md` §1.
 
 ## Commands
 
-The planned layout (`DataBridge.sln`, `src/`, `tests/`, `benchmarks/`)
-does not exist until Phase 0 lands. Once it does:
-
 ``` text
 dotnet restore
-dotnet build DataBridge.sln
-dotnet format --verify-no-changes
-dotnet test DataBridge.sln
-dotnet test tests/DataBridge.Core.Tests --filter "FullyQualifiedName~<TestClassOrMethod>"
+dotnet build DataBridge.sln -warnaserror
+dotnet format DataBridge.sln --verify-no-changes
+dotnet test --solution DataBridge.sln
+dotnet test --project tests/DataBridge.Core.Tests --filter-class "*<TestClass>"
+dotnet test --project tests/DataBridge.Core.Tests --filter-method "*<TestMethod>"
 dotnet run --project src/DataBridge.Desktop
 dotnet run -c Release --project benchmarks/DataBridge.Benchmarks
 dotnet publish src/DataBridge.Desktop -c Release -r win-x64 --self-contained
 ```
 
+The SDK is pinned in `global.json` (10.0.4xx band), which also opts
+`dotnet test` into Microsoft.Testing.Platform; tests use xUnit v3. Use
+`--solution`/`--project` and the xUnit `--filter-*` options, not the
+VSTest `--filter "FullyQualifiedName~..."` syntax. Package versions live
+in `Directory.Packages.props`; shared build settings in
+`Directory.Build.props` (warnings are errors when `CI=true`) and
+`tests/Directory.Build.props`. CI (`.github/workflows/ci.yml`) runs
+restore, build (Release, `-warnaserror`) and test on Windows, Linux and
+macOS, and the format check on Linux. `.gitattributes` keeps text files
+LF on every OS so the format check passes everywhere.
+
+Test projects created ahead of their phase have a
+`Properties/launchSettings.json` passing `--ignore-exit-code 8`, because
+the platform fails a project that has no tests. Delete that file when
+the project gets its first test.
+
+`DataBridge.ArchitectureTests` enforces the dependency rules below;
+update `DependencyRules.cs` when you add a source project.
 `DataBridge.IntegrationTests` needs a disposable SQL Server instance
-(the fixture is a Phase 2 task). Replace this section with the real
-commands and SQL Server fixture setup once they exist.
+(the fixture is a Phase 2 task).
 
 ## Big-picture architecture
 
