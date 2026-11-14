@@ -14,15 +14,16 @@ open decision it must close (`requirements.md` §10,
 
 ### Current status (2026-11-14)
 
-Phase 0 is in progress. Done: solution and project structure, SDK pin,
-central package management, nullable/analyzer/formatting settings,
-architecture dependency tests, the CI workflow
-(`.github/workflows/ci.yml`: build and test on Windows, Linux and
-macOS), README and ADRs 0001--0008 in `docs/adr/`. The Desktop project wraps the visual
-design system drafted ahead of Phase 1 (`DESIGN.md`, `PRODUCT.md`,
+Phase 0 is complete; Phase 1 is next. Done: solution and project
+structure, SDK pin, central package management,
+nullable/analyzer/formatting settings, architecture dependency tests,
+the CI workflow (`.github/workflows/ci.yml`: build and test on Windows,
+Linux and macOS), README and ADRs 0001--0008 in `docs/adr/`. Acceptance
+was confirmed by the first green CI run on all three operating systems
+(pull request #1). The Desktop project wraps the visual design system
+drafted ahead of Phase 1 (`DESIGN.md`, `PRODUCT.md`,
 `src/DataBridge.Desktop/Themes/`, `src/DataBridge.Desktop/Assets/`) in a
-placeholder window. Remaining: a first green CI run on all three
-operating systems, which closes Phase 0's acceptance.
+placeholder window.
 
 ## 2. Phase 0 --- Repository bootstrap
 

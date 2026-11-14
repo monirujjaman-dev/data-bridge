@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current repository state
 
-Phase 0 is in progress. The solution and project structure exist and
-build; the projects contain no domain code yet. `DataBridge.Desktop` is
+Phase 0 is complete; Phase 1 is next. The solution and project
+structure exist and build; the projects contain no domain code yet. `DataBridge.Desktop` is
 a placeholder Avalonia window that loads the visual design system
 (`PRODUCT.md`, `DESIGN.md`, `src/DataBridge.Desktop/Themes/`,
 `src/DataBridge.Desktop/Assets/`), drafted ahead of Phase 1. Read these
