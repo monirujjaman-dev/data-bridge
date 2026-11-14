@@ -3,7 +3,17 @@
   <!-- SQL Server provider, local persistence and credential-store adapters. -->
   <PropertyGroup>
     <RootNamespace>DataBridge.Infrastructure</RootNamespace>
+    <!-- The OS credential-store adapters call native APIs through source-generated P/Invoke and function pointers. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DataBridge.Infrastructure.Tests" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../DataBridge.Application/DataBridge.Application.csproj" />

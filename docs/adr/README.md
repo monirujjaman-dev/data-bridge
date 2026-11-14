@@ -15,6 +15,7 @@ Records 0001--0008 record the baseline decisions in
 | [0006](0006-optional-dacfx-adapter.md) | DacFx is optional and isolated behind an adapter | Accepted |
 | [0007](0007-sqlite-local-persistence.md) | SQLite for local application metadata | Accepted |
 | [0008](0008-no-bidirectional-sync-v1.md) | No automatic bidirectional synchronization in v1 | Accepted |
+| [0009](0009-sqlite-data-access.md) | Plain ADO.NET over Microsoft.Data.Sqlite for local persistence | Accepted |
 
 ## Writing a new record
 

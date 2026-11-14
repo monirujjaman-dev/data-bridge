@@ -14,7 +14,17 @@ open decision it must close (`requirements.md` §10,
 
 ### Current status (2026-11-14)
 
-Phase 0 is complete; Phase 1 is next. Done: solution and project
+Phase 1 is in progress. Done: connection profile domain model
+(`Core/Connections`), profile use cases and the repository and
+credential-store ports (`Application/Connections`,
+`Application/Abstractions`), and SQLite persistence with versioned
+migrations (`Infrastructure/Persistence/Sqlite`, ADR-0009), and OS
+credential-store adapters for Windows, macOS and Linux
+(`Infrastructure/Security`). Remaining: structured logging and
+redaction, and the Desktop shell (host, DI, MVVM, navigation, theme,
+profile screens).
+
+Phase 0 is complete. Done: solution and project
 structure, SDK pin, central package management,
 nullable/analyzer/formatting settings, architecture dependency tests,
 the CI workflow (`.github/workflows/ci.yml`: build and test on Windows,
