@@ -123,48 +123,63 @@ public sealed record ColumnValueItem(string ColumnName, string SourceValue, stri
 
 /// <summary>
 /// Keeps the first differing rows of each table for display and counts the rest, so a table with millions of
-/// differences never fills memory or the UI (NFR-PER-002). Thread-safe: tables are compared in parallel.
+/// differences, or with large values, never fills memory or the UI (NFR-PER-002). Each table keeps at most
+/// <see cref="MaxRowsPerTable"/> rows and about <see cref="MaxBytesPerTable"/> bytes of values. Thread-safe: tables
+/// are compared in parallel.
 /// </summary>
-public sealed class BoundedDifferenceSink(int maxRowsPerTable) : IRowDifferenceSink
+public sealed class BoundedDifferenceSink(int maxRowsPerTable, long maxBytesPerTable = 32L * 1024 * 1024) : IRowDifferenceSink
 {
-    private readonly ConcurrentDictionary<DatabaseObjectId, List<RowDifference>> _rows = new();
+    private readonly ConcurrentDictionary<DatabaseObjectId, Retained> _rows = new();
 
     public int MaxRowsPerTable { get; } = maxRowsPerTable;
+
+    public long MaxBytesPerTable { get; } = maxBytesPerTable;
 
     public void Add(RowDifference difference)
     {
         ArgumentNullException.ThrowIfNull(difference);
-        var rows = _rows.GetOrAdd(difference.TableId, _ => []);
-        lock (rows)
+        var retained = _rows.GetOrAdd(difference.TableId, _ => new Retained());
+        var size = difference.KeyValues.Sum(value => value.ApproximateSize)
+            + difference.Columns.Sum(column => (column.SourceValue?.ApproximateSize ?? 0) + (column.TargetValue?.ApproximateSize ?? 0));
+        lock (retained)
         {
-            if (rows.Count < MaxRowsPerTable)
+            if (retained.Rows.Count < MaxRowsPerTable && retained.Bytes + size <= MaxBytesPerTable)
             {
-                rows.Add(difference);
+                retained.Rows.Add(difference);
+                retained.Bytes += size;
             }
         }
     }
 
     public void Discard(DatabaseObjectId tableId)
     {
-        if (_rows.TryGetValue(tableId, out var rows))
+        if (_rows.TryGetValue(tableId, out var retained))
         {
-            lock (rows)
+            lock (retained)
             {
-                rows.Clear();
+                retained.Rows.Clear();
+                retained.Bytes = 0;
             }
         }
     }
 
     public IReadOnlyList<RowDifference> RowsOf(DatabaseObjectId tableId)
     {
-        if (!_rows.TryGetValue(tableId, out var rows))
+        if (!_rows.TryGetValue(tableId, out var retained))
         {
             return [];
         }
 
-        lock (rows)
+        lock (retained)
         {
-            return [.. rows];
+            return [.. retained.Rows];
         }
+    }
+
+    private sealed class Retained
+    {
+        public List<RowDifference> Rows { get; } = [];
+
+        public long Bytes { get; set; }
     }
 }

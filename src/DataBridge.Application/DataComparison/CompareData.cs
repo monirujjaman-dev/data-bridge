@@ -143,15 +143,24 @@ public sealed class CompareData(
         int total,
         CancellationToken cancellationToken)
     {
-        var opened = await Task.WhenAll(
-            sourceProvider.OpenAsync(comparison.Source, options.PreferredConsistency, cancellationToken),
-            targetProvider.OpenAsync(comparison.Target, options.PreferredConsistency, cancellationToken));
-        await using var sourceRows = opened[0].IsSuccess ? opened[0].Value : null;
-        await using var targetRows = opened[1].IsSuccess ? opened[1].Value : null;
+        var sourceOpen = TryOpenAsync(sourceProvider, comparison.Source, options.PreferredConsistency, cancellationToken);
+        var targetOpen = TryOpenAsync(targetProvider, comparison.Target, options.PreferredConsistency, cancellationToken);
+        try
+        {
+            await Task.WhenAll(sourceOpen, targetOpen);
+        }
+        catch
+        {
+            // Cancelled or failed unexpectedly: never leave the side that did open holding a connection and snapshot.
+            await DisposeOpenedAsync(sourceOpen, targetOpen);
+            throw;
+        }
+
+        await using var sourceRows = sourceOpen.Result.Reader;
+        await using var targetRows = targetOpen.Result.Reader;
         if (sourceRows is null || targetRows is null)
         {
-            var error = (opened[0].IsFailure ? opened[0] : opened[1]).Errors[0];
-            return Failed(plan, $"Could not start reading: {error.Message}");
+            return Failed(plan, $"Could not start reading: {sourceOpen.Result.Error ?? targetOpen.Result.Error}");
         }
 
         var sourceRequest = new TableReadRequest(
@@ -197,6 +206,35 @@ public sealed class CompareData(
                 SourceConsistency = sourceRows.AchievedConsistency,
                 TargetConsistency = targetRows.AchievedConsistency,
             };
+        }
+    }
+
+    /// <summary>Opens a read session; an expected failure is returned as a message for the table's summary.</summary>
+    private static async Task<(ITableRowReader? Reader, string? Error)> TryOpenAsync(
+        IDataReaderProvider provider,
+        DatabaseConnectionRequest request,
+        ReadConsistencyMode consistency,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await provider.OpenAsync(request, consistency, cancellationToken);
+            return result.IsSuccess ? (result.Value, null) : (null, result.Errors[0].Message);
+        }
+        catch (DataReadException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            return (null, exception.Message);
+        }
+    }
+
+    private static async Task DisposeOpenedAsync(params Task<(ITableRowReader? Reader, string? Error)>[] opens)
+    {
+        foreach (var open in opens)
+        {
+            if (open.IsCompletedSuccessfully && open.Result.Reader is { } reader)
+            {
+                await reader.DisposeAsync();
+            }
         }
     }
 

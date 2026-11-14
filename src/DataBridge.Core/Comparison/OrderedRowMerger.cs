@@ -118,6 +118,17 @@ public sealed class OrderedRowMerger
     private void CompareMatched(DataRow source, DataRow target, IRowDifferenceSink sink, Counts counts)
     {
         List<ColumnDifference>? changed = null;
+
+        // Keys matched under the key ordering can still differ as stored (trailing spaces, a datetimeoffset's offset).
+        for (var index = 0; index < _plan.KeyColumns.Count; index++)
+        {
+            if (!ValueEquality.AreEqual(source.Key[index], target.Key[index]))
+            {
+                (changed ??= []).Add(new ColumnDifference(
+                    _plan.KeyColumns[index].Name, source.Key[index], target.Key[index], DifferenceStatus.Modified));
+            }
+        }
+
         for (var index = 0; index < _plan.ValueColumns.Count; index++)
         {
             if (!ValueEquality.AreEqual(source.Values[index], target.Values[index]))
@@ -139,8 +150,8 @@ public sealed class OrderedRowMerger
             source.Key,
             DifferenceStatus.Modified,
             changed,
-            RowFingerprint.Compute(source.Values),
-            RowFingerprint.Compute(target.Values)));
+            Fingerprint(source),
+            Fingerprint(target)));
     }
 
     private RowDifference OneSided(DataRow row, DifferenceStatus status)
@@ -153,9 +164,12 @@ public sealed class OrderedRowMerger
             columns[index] = new ColumnDifference(_plan.ValueColumns[index].Name, isSource ? value : null, isSource ? null : value, status);
         }
 
-        var fingerprint = RowFingerprint.Compute(row.Values);
+        var fingerprint = Fingerprint(row);
         return new RowDifference(_plan.TableId, row.Key, status, columns, isSource ? fingerprint : null, isSource ? null : fingerprint);
     }
+
+    /// <summary>The fingerprint of the whole row, key included, so a changed key value changes it.</summary>
+    private static string Fingerprint(DataRow row) => RowFingerprint.Compute([.. row.Key, .. row.Values]);
 
     private sealed class Counts
     {

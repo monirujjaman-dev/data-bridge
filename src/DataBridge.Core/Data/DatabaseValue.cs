@@ -119,6 +119,14 @@ public sealed class DatabaseValue
 
     public bool IsNull => _value is null;
 
+    /// <summary>Roughly how many bytes the value holds in memory, for bounding batches and buffers.</summary>
+    public long ApproximateSize => 32 + _value switch
+    {
+        string text => text.Length * 2L,
+        byte[] bytes => bytes.Length,
+        _ => 16,
+    };
+
     public static DatabaseValue Null(ValueKind kind, string sqlTypeName) => new(kind, sqlTypeName, null);
 
     public static DatabaseValue FromInt64(long value, string sqlTypeName) => new(ValueKind.WholeNumber, sqlTypeName, value);

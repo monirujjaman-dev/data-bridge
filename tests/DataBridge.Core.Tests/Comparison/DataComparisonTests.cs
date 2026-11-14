@@ -268,3 +268,105 @@ public sealed class DataComparisonTests
         };
     }
 }
+
+public sealed class DataComparisonReviewTests
+{
+    private static CancellationToken Token => TestContext.Current.CancellationToken;
+
+    private static TableDataComparisonPlan TextKeyPlan(string keyType)
+    {
+        var key = new ColumnDefinition("Code", keyType, 10, false, null, null, false, null, null, null, 1);
+        var value = new ColumnDefinition("N", "int", null, false, null, null, false, null, null, null, 2);
+        var id = new DatabaseObjectId("dbo", "T", DatabaseObjectType.Table);
+        var kind = keyType == "datetimeoffset" ? ValueKind.DateTimeOffset : ValueKind.Text;
+        return new TableDataComparisonPlan(
+            id, id, new MatchingKey(id, ["Code"], MatchingKeySource.PrimaryKey),
+            [new ComparedColumn("Code", key, key, kind)], [new ComparedColumn("N", value, value, ValueKind.WholeNumber)], []);
+    }
+
+    private static async IAsyncEnumerable<IReadOnlyList<DataRow>> One(DatabaseValue key)
+    {
+        await Task.Yield();
+        yield return [new DataRow([key], [DatabaseValue.FromInt64(1, "int")])];
+    }
+
+    private sealed class Sink : IRowDifferenceSink
+    {
+        public List<RowDifference> Rows { get; } = [];
+
+        public void Add(RowDifference difference) => Rows.Add(difference);
+
+        public void Discard(DatabaseObjectId tableId)
+        {
+        }
+    }
+
+    [Fact]
+    public async Task Keys_matched_by_ordering_but_stored_differently_are_reported()
+    {
+        var sink = new Sink();
+
+        var result = await new OrderedRowMerger(TextKeyPlan("varchar"), DefaultKeyOrdering.Instance).MergeAsync(
+            One(DatabaseValue.FromText("ABC", "varchar")), One(DatabaseValue.FromText("ABC  ", "varchar")), sink, null, Token);
+
+        Assert.Equal((0L, 1L), (result.EqualRowCount, result.ModifiedRowCount));
+        var column = Assert.Single(Assert.Single(sink.Rows).Columns);
+        Assert.Equal(("Code", "ABC", "ABC  "), (column.ColumnName, column.SourceValue!.AsString(), column.TargetValue!.AsString()));
+        Assert.NotEqual(sink.Rows[0].SourceFingerprint, sink.Rows[0].TargetFingerprint);
+    }
+
+    [Fact]
+    public async Task Same_instant_with_a_different_offset_is_a_modified_key()
+    {
+        var instant = new DateTimeOffset(2026, 1, 1, 10, 0, 0, TimeSpan.Zero);
+        var sink = new Sink();
+
+        var result = await new OrderedRowMerger(TextKeyPlan("datetimeoffset"), DefaultKeyOrdering.Instance).MergeAsync(
+            One(DatabaseValue.FromDateTimeOffset(instant, "datetimeoffset")),
+            One(DatabaseValue.FromDateTimeOffset(instant.ToOffset(TimeSpan.FromHours(2)), "datetimeoffset")),
+            sink,
+            null,
+            Token);
+
+        Assert.Equal(1, result.ModifiedRowCount);
+    }
+
+    [Fact]
+    public void Text_keys_order_as_if_padded_with_spaces()
+    {
+        Assert.Equal(0, DefaultKeyOrdering.ComparePadded("a", "a  "));
+        Assert.True(DefaultKeyOrdering.ComparePadded("a\t", "a") < 0, "A tab sorts below the padding space.");
+        Assert.True(DefaultKeyOrdering.ComparePadded("a", "a!") < 0);
+    }
+
+    [Fact]
+    public void Provider_comparability_excludes_columns_and_rejects_keys()
+    {
+        var classifier = new PaddingAwareClassifier();
+        var planner = new DataComparisonPlanner(classifier);
+        static TableDefinition Table(string codeType, string valueType) => new(
+            new DatabaseObjectId("dbo", "T", DatabaseObjectType.Table),
+            [
+                new ColumnDefinition("Id", "int", null, false, null, null, false, null, null, null, 1),
+                new ColumnDefinition("Code", codeType, 10, false, null, null, false, null, null, null, 2),
+                new ColumnDefinition("Value", valueType, 10, false, null, null, true, null, null, null, 3),
+            ],
+            new PrimaryKeyDefinition("PK", false, "CLUSTERED", [new IndexColumnDefinition("Id", 1, false, false)], new IndexOptions(false, 100, false, true, true, false, "NONE")),
+            [], [], [], [], []);
+
+        var plan = planner.Plan(Table("varchar", "char"), Table("varchar", "varchar"), null, true, StringComparer.Ordinal).Plan!;
+        Assert.Equal(["Code"], plan.ValueColumns.Select(column => column.Name));
+        Assert.Equal("Value", Assert.Single(plan.ExcludedColumns).ColumnName);
+
+        var rejected = planner.Plan(Table("char", "varchar"), Table("varchar", "varchar"), ["Code"], true, StringComparer.Ordinal).NotCompared!;
+        Assert.Equal(TableDataComparisonOutcome.IncompatibleKeyTypes, rejected.Outcome);
+    }
+
+    private sealed class PaddingAwareClassifier : IValueKindClassifier
+    {
+        public ValueKind Classify(ColumnDefinition column) => column.SqlTypeName == "int" ? ValueKind.WholeNumber : ValueKind.Text;
+
+        public bool AreComparable(ColumnDefinition source, ColumnDefinition target) =>
+            Classify(source) == Classify(target) && (source.SqlTypeName == "char") == (target.SqlTypeName == "char");
+    }
+}

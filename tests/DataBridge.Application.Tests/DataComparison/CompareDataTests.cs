@@ -85,6 +85,22 @@ public sealed class CompareDataTests
     }
 
     [Fact]
+    public async Task A_side_that_cannot_open_fails_its_tables_and_releases_the_other_side()
+    {
+        var (source, target) = await ProfilesAsync();
+        _world.Table("Source", "Orders", (1, "a"));
+        _world.Table("Target", "Orders", (1, "a"));
+        _world.FailOpenDatabases.Add("Target");
+
+        var result = await _compare.ExecuteAsync(Request(source, target, []), new ListSink(), null, Token);
+
+        var summary = Assert.Single(result.Value.Tables);
+        Assert.Equal(TableDataComparisonOutcome.Failed, summary.Outcome);
+        Assert.Equal("Could not start reading: The read session could not be started.", summary.Reason);
+        Assert.Equal(0, _world.OpenReaders);
+    }
+
+    [Fact]
     public async Task Invalid_options_are_rejected_before_connecting()
     {
         var (source, target) = await ProfilesAsync();
@@ -204,6 +220,8 @@ public sealed class CompareDataTests
 
         public HashSet<string> KeylessTables { get; } = [];
 
+        public HashSet<string> FailOpenDatabases { get; } = [];
+
         public Action? OnBatch { get; set; }
 
         public int Connections => _connections;
@@ -261,6 +279,11 @@ public sealed class CompareDataTests
 
         public Task<Result<ITableRowReader>> OpenAsync(DatabaseConnectionRequest request, ReadConsistencyMode preferredConsistency, CancellationToken cancellationToken)
         {
+            if (FailOpenDatabases.Contains(request.Profile.Name))
+            {
+                throw new DataReadException("The read session could not be started.");
+            }
+
             Interlocked.Increment(ref _connections);
             Interlocked.Increment(ref _openReaders);
             return Task.FromResult(Result.Success<ITableRowReader>(new Reader(this, request.Profile.Name, preferredConsistency)));

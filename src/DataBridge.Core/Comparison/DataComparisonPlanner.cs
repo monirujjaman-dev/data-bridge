@@ -7,6 +7,13 @@ namespace DataBridge.Core.Comparison;
 public interface IValueKindClassifier
 {
     ValueKind Classify(ColumnDefinition column);
+
+    /// <summary>
+    /// Whether values of these two columns can be compared exactly. Same kind is necessary but not sufficient: for
+    /// SQL Server, <c>char</c> pads where <c>varchar</c> does not, and <c>datetime</c> and <c>datetime2</c> round
+    /// differently, so such pairs would report false differences.
+    /// </summary>
+    bool AreComparable(ColumnDefinition source, ColumnDefinition target) => Classify(source) == Classify(target);
 }
 
 /// <summary>A column compared on both sides, with the family its values are compared in.</summary>
@@ -179,7 +186,7 @@ public sealed class DataComparisonPlanner(IValueKindClassifier classifier)
         {
             var (source, target) = (sourceColumns[name], targetColumns[name]);
             var (sourceKind, targetKind) = (_classifier.Classify(source), _classifier.Classify(target));
-            if (sourceKind != targetKind)
+            if (sourceKind != targetKind || !_classifier.AreComparable(source, target))
             {
                 return $"Key column {name} is {source.SqlTypeName} in the source and {target.SqlTypeName} in the target, which cannot be matched safely.";
             }
@@ -259,7 +266,7 @@ public sealed class DataComparisonPlanner(IValueKindClassifier classifier)
             return $"Values of type {type} are not compared.";
         }
 
-        if (sourceKind != targetKind)
+        if (sourceKind != targetKind || !_classifier.AreComparable(source, target))
         {
             return $"The column is {source.SqlTypeName} in the source and {target.SqlTypeName} in the target, which cannot be compared without conversion.";
         }

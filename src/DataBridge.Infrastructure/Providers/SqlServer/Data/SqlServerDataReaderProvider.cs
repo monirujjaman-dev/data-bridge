@@ -74,6 +74,9 @@ internal sealed class SqlServerDataReaderProvider : IDataReaderProvider
 internal sealed class SqlServerTableRowReader(SqlConnection connection, SqlTransaction transaction, ReadConsistencyMode consistency)
     : ITableRowReader
 {
+    /// <summary>A batch also ends once its values hold about this many bytes (NFR-PER-001).</summary>
+    public const long MaxBatchBytes = 16L * 1024 * 1024;
+
     public ReadConsistencyMode AchievedConsistency => consistency;
 
     public async IAsyncEnumerable<IReadOnlyList<DataRow>> ReadRowsAsync(
@@ -93,29 +96,47 @@ internal sealed class SqlServerTableRowReader(SqlConnection connection, SqlTrans
         // A stream of a large table legitimately takes long; cancellation, not a timeout, bounds it.
         command.CommandTimeout = 0;
 
-        await using var reader = await Execute(() => command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken));
+        await using var reader = await Execute(() => command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken), cancellationToken);
         var columns = request.KeyColumns.Concat(request.ValueColumns).ToArray();
         var keyCount = request.KeyColumns.Count;
-        var batch = new List<DataRow>(request.BatchSize);
-        while (await Execute(() => reader.ReadAsync(cancellationToken)))
+        var batch = new List<DataRow>(Math.Min(request.BatchSize, 4096));
+        long batchBytes = 0;
+        var finished = false;
+        try
         {
-            var values = new DatabaseValue[columns.Length];
-            for (var ordinal = 0; ordinal < columns.Length; ordinal++)
+            while (await Execute(() => reader.ReadAsync(cancellationToken), cancellationToken))
             {
-                values[ordinal] = await Execute(() => SqlServerValueReader.ReadAsync(reader, ordinal, columns[ordinal], cancellationToken));
+                var values = new DatabaseValue[columns.Length];
+                for (var ordinal = 0; ordinal < columns.Length; ordinal++)
+                {
+                    values[ordinal] = await Execute(() => SqlServerValueReader.ReadAsync(reader, ordinal, columns[ordinal], cancellationToken), cancellationToken);
+                    batchBytes += values[ordinal].ApproximateSize;
+                }
+
+                batch.Add(new DataRow(values[..keyCount], values[keyCount..]));
+
+                // Rows bound the batch, and so do bytes: large text and binary values must not multiply by the batch size.
+                if (batch.Count == request.BatchSize || batchBytes >= MaxBatchBytes)
+                {
+                    yield return batch;
+                    batch = new List<DataRow>(Math.Min(request.BatchSize, 4096));
+                    batchBytes = 0;
+                }
             }
 
-            batch.Add(new DataRow(values[..keyCount], values[keyCount..]));
-            if (batch.Count == request.BatchSize)
+            finished = true;
+            if (batch.Count > 0)
             {
                 yield return batch;
-                batch = new List<DataRow>(request.BatchSize);
             }
         }
-
-        if (batch.Count > 0)
+        finally
         {
-            yield return batch;
+            // Disposing an unfinished reader makes SqlClient read and discard every remaining row; cancel instead.
+            if (!finished)
+            {
+                command.Cancel();
+            }
         }
     }
 
@@ -135,18 +156,29 @@ internal sealed class SqlServerTableRowReader(SqlConnection connection, SqlTrans
         await connection.DisposeAsync();
     }
 
-    /// <summary>Server failures become <see cref="DataReadException"/> with a message that holds no row values.</summary>
-    private static async Task<T> Execute<T>(Func<Task<T>> action)
+    /// <summary>
+    /// Read failures become <see cref="DataReadException"/> with a message that holds no row values; a failure after
+    /// cancellation is reported as cancellation.
+    /// </summary>
+    private static async Task<T> Execute<T>(Func<Task<T>> action, CancellationToken cancellationToken)
     {
         try
         {
             return await action();
+        }
+        catch (Exception exception) when (cancellationToken.IsCancellationRequested && exception is not OperationCanceledException)
+        {
+            throw new OperationCanceledException("The read was cancelled.", exception, cancellationToken);
         }
         catch (SqlException exception) when (exception.Number != 0)
         {
             throw new DataReadException($"The server returned error {exception.Number} while reading the table.", exception);
         }
         catch (SqlException exception)
+        {
+            throw new DataReadException("The connection failed while reading the table.", exception);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
             throw new DataReadException("The connection failed while reading the table.", exception);
         }

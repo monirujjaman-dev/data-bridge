@@ -224,6 +224,57 @@ public sealed class SqlServerDataComparisonTests(SqlServerFixture server)
         Assert.Equal("The server returned error 208 while reading the table.", failure.Message);
     }
 
+    [Fact]
+    public async Task Columns_whose_types_store_values_differently_are_excluded()
+    {
+        server.RequireServer();
+        var source = await CreateAsync("CREATE TABLE dbo.Mixed (Id int NOT NULL PRIMARY KEY, Code char(10) NULL, Moment datetime NULL, Ratio real NULL, Label varchar(20) NULL); INSERT dbo.Mixed VALUES (1, 'abc', '2026-01-01T00:00:00.003', 0.1, 'x');");
+        var target = await CreateAsync("CREATE TABLE dbo.Mixed (Id int NOT NULL PRIMARY KEY, Code varchar(10) NULL, Moment datetime2(7) NULL, Ratio float NULL, Label nvarchar(20) NULL); INSERT dbo.Mixed VALUES (1, 'abc', '2026-01-01T00:00:00.003', 0.1, N'x');");
+
+        var plan = (await PlanAsync(source, target, "Mixed", null)).Plan!;
+        var (result, _) = await CompareAsync(source, target, "Mixed");
+
+        Assert.Equal(["Code", "Moment", "Ratio"], plan.ExcludedColumns.Select(column => column.ColumnName));
+        Assert.Equal(["Label"], plan.ValueColumns.Select(column => column.Name));
+        Assert.Equal(1, result.EqualRowCount);
+    }
+
+    [Fact]
+    public async Task Keys_equal_to_sql_server_but_stored_differently_are_reported_as_modified()
+    {
+        server.RequireServer();
+        var source = await CreateAsync("CREATE TABLE dbo.Codes (Code varchar(10) NOT NULL PRIMARY KEY, N int NOT NULL); INSERT dbo.Codes VALUES ('ABC', 1);");
+        var target = await CreateAsync("CREATE TABLE dbo.Codes (Code varchar(10) NOT NULL PRIMARY KEY, N int NOT NULL); INSERT dbo.Codes VALUES ('ABC  ', 1);");
+
+        var (result, sink) = await CompareAsync(source, target, "Codes");
+
+        Assert.Equal((0L, 1L), (result.EqualRowCount, result.ModifiedRowCount));
+        Assert.Equal("Code", Assert.Single(Assert.Single(sink.Rows).Columns).ColumnName);
+    }
+
+    [Fact]
+    public async Task Stopping_early_returns_promptly()
+    {
+        server.RequireServer();
+        var database = await CreateAsync("""
+            CREATE TABLE dbo.Wide (Id int NOT NULL PRIMARY KEY, Payload nvarchar(2000) NOT NULL);
+            INSERT dbo.Wide SELECT TOP (100000) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)), REPLICATE(N'x', 2000)
+            FROM sys.all_columns a CROSS JOIN sys.all_columns b;
+            """);
+        var plan = (await PlanAsync(database, database, "Wide", null)).Plan!;
+        await using var reader = (await _data.OpenAsync(server.Request(database), ReadConsistencyMode.ReadCommitted, Token)).Value;
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        await foreach (var _ in reader.ReadRowsAsync(Request(plan, side: 0, batchSize: 10), Token))
+        {
+            break;
+        }
+
+        // A smoke test: about 400 MB remain on the server. It does not prove the cancel path, because a local server
+        // drains this quickly; the reader cancels the command so a remote or much larger table is not drained.
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"Stopping took {stopwatch.Elapsed}.");
+    }
+
     private static DatabaseObjectId PlanTableId(string name) => new("dbo", name, DatabaseObjectType.Table);
 
     private async Task<string> CreateAsync(string script)

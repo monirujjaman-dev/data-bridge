@@ -48,8 +48,8 @@ public interface IKeyOrdering
 
 /// <summary>
 /// The provider-independent key order: numeric for numbers, chronological for temporal values, false before true,
-/// unsigned bytewise for binary, and ordinal UTF-16 for text after removing trailing spaces (SQL comparisons pad
-/// with spaces, so <c>'a'</c> and <c>'a '</c> are the same key). Providers override what their engine orders
+/// unsigned bytewise for binary, and ordinal UTF-16 for text with the shorter string padded with spaces (SQL
+/// comparisons pad, so <c>'a'</c> and <c>'a '</c> are the same key). Providers override what their engine orders
 /// differently, such as GUIDs.
 /// </summary>
 public class DefaultKeyOrdering : IKeyOrdering
@@ -72,7 +72,7 @@ public class DefaultKeyOrdering : IKeyOrdering
 
         return (x.RawValue, y.RawValue) switch
         {
-            (string left, string right) => string.CompareOrdinal(left.TrimEnd(' '), right.TrimEnd(' ')),
+            (string left, string right) => ComparePadded(left, right),
             (byte[] left, byte[] right) => left.AsSpan().SequenceCompareTo(right),
             (DecimalValue left, DecimalValue right) => left.CompareTo(right),
             (Guid left, Guid right) => CompareGuids(left, right),
@@ -80,6 +80,28 @@ public class DefaultKeyOrdering : IKeyOrdering
             (IComparable left, var right) => left.CompareTo(right),
             _ => throw new ArgumentException($"{x.Kind} values cannot be ordered as keys."),
         };
+    }
+
+    /// <summary>
+    /// Ordinal UTF-16 order as if the shorter string were padded with spaces, which is how SQL comparisons treat
+    /// trailing spaces: <c>'a'</c> equals <c>'a '</c>, and <c>'a'</c> plus a tab sorts before <c>'a'</c>.
+    /// </summary>
+    public static int ComparePadded(string left, string right)
+    {
+        ArgumentNullException.ThrowIfNull(left);
+        ArgumentNullException.ThrowIfNull(right);
+        var length = Math.Max(left.Length, right.Length);
+        for (var index = 0; index < length; index++)
+        {
+            var x = index < left.Length ? left[index] : ' ';
+            var y = index < right.Length ? right[index] : ' ';
+            if (x != y)
+            {
+                return x.CompareTo(y);
+            }
+        }
+
+        return 0;
     }
 
     /// <summary>The engine's GUID order. The default is <see cref="System.Guid.CompareTo(System.Guid)"/>.</summary>
