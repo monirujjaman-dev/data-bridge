@@ -12,7 +12,19 @@ Each phase lists the requirements it covers (`requirements.md`) and any
 open decision it must close (`requirements.md` §10,
 `architecture.md` §16) before its acceptance is claimed.
 
-### Current status (2026-11-14)
+### Current status (2026-11-15)
+
+Phase 2 is in progress. Decided: SQL Server 2017 and later only, Azure
+SQL and Entra ID deferred (ADR-0010); disposable SQL Server 2022
+containers for integration tests (ADR-0011). Done: `ResolvedDatabaseIdentity`
+(`Core/Connections`), the `IDatabaseProvider` and
+`IDatabaseProviderFactory` ports, `ConnectionErrors` and the
+`TestConnection` use case (`Application`), the SQL Server provider
+(`Infrastructure/Providers/SqlServer`: connection strings, identity
+query, version and engine checks, error translation), the container
+fixture and integration tests, and a Test connection button that shows
+the resolved identity. Integrated authentication is covered by
+connection-string tests only (no domain in the container).
 
 Phase 1 is complete. Acceptance was confirmed by a green CI run on all
 three operating systems (pull request #4, 210 tests, none skipped). Done:

@@ -64,9 +64,11 @@ public sealed record ResolvedDatabaseIdentity(
     string ServerName,                // as reported by the server, e.g. @@SERVERNAME
     string DatabaseName,
     int? DatabaseId,
+    Guid? DatabaseGuid,               // e.g. SQL Server service_broker_guid
+    DateTime? DatabaseCreateDate,     // as the server reports it (server local time); identifying, not UTC
     string ServerVersion,
     string? DatabaseCollation,
-    string IdentityFingerprint);      // stable hash of the identifying fields
+    string IdentityFingerprint);      // stable hash of the identifying fields; a match is not proof (§11)
 ```
 
 Secrets are referenced through `CredentialReference`, never held in

@@ -23,6 +23,12 @@ internal static partial class ConnectionProfileLog
     [LoggerMessage(EventId = 1004, Level = LogLevel.Information, Message = "Connection profile {ProfileId} was not saved: {ErrorCodes}")]
     public static partial void ProfileRejected(ILogger logger, Guid profileId, string errorCodes);
 
+    [LoggerMessage(EventId = 1005, Level = LogLevel.Information, Message = "Connection test succeeded for profile {ProfileId}; database identity {IdentityFingerprint}")]
+    public static partial void ConnectionTestSucceeded(ILogger logger, Guid? profileId, string identityFingerprint);
+
+    [LoggerMessage(EventId = 1006, Level = LogLevel.Information, Message = "Connection test failed for profile {ProfileId}: {ErrorCode}")]
+    public static partial void ConnectionTestFailed(ILogger logger, Guid? profileId, string errorCode);
+
     [LoggerMessage(EventId = 1010, Level = LogLevel.Warning, Message = "OS credential store unavailable; the password of connection profile {ProfileId} is kept for this session only: {Reason}")]
     public static partial void PasswordKeptForSession(ILogger logger, Guid profileId, string reason);
 

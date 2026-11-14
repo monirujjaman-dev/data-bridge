@@ -1,6 +1,6 @@
 # DataBridge --- Product Requirements
 
-**Version:** 1.0 baseline (revision 2, 2026-11-14)\
+**Version:** 1.0 baseline (revision 3, 2026-11-14)\
 **Status:** Approved\
 **Product type:** Cross-platform desktop application\
 **Initial provider:** Microsoft SQL Server
@@ -320,16 +320,28 @@ cloud services, scheduled synchronization and collaboration.
 These must be decided (and recorded here or in an ADR) before the phase
 noted; until then they are out of scope.
 
+Decided:
+
+-   **Supported SQL Server targets:** SQL Server 2017 and later, all
+    editions, on premises or in a VM or container. Azure SQL Database,
+    Azure SQL Managed Instance, Azure SQL Edge and Synapse are deferred
+    and rejected with an explanatory error (ADR-0010).
+-   **Microsoft Entra ID authentication:** deferred with Azure SQL. v1
+    supports SQL authentication and integrated (Windows or Kerberos)
+    authentication (ADR-0010).
+
+Open:
+
 | Decision | Needed by |
 |----------|-----------|
-| Supported SQL Server versions and editions, and whether Azure SQL Database / Managed Instance are supported | Phase 2 |
-| Microsoft Entra ID authentication (needed for Azure SQL) | Phase 2 |
 | Object types beyond §6.2: synonyms, user-defined types and table types, partition schemes/functions, temporal and memory-optimized tables, full-text objects, users/roles/permissions | Phase 3 |
 | Environment labels on profiles (e.g. Production) and whether they change approval requirements | Phase 5 |
 | How data operations are materialized in a plan without holding all rows (see architecture §16) | Phase 5 |
 
 ## 11. Revision history
 
+-   **Revision 3 (2026-11-14):** decided supported SQL Server targets
+    and deferred Entra ID authentication (ADR-0010).
 -   **Revision 2 (2026-11-14):** added terminology (write target,
     destructive operation); FR-CON-009, FR-DAT-015/016, FR-PLN-013/014,
     FR-UI-007, AC-16; clarified FR-CON-008, FR-SCH-002/008/010,

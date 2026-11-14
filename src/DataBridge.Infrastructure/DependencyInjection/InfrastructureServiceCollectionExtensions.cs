@@ -1,5 +1,7 @@
 using DataBridge.Application.Abstractions;
 using DataBridge.Infrastructure.Persistence.Sqlite;
+using DataBridge.Infrastructure.Providers;
+using DataBridge.Infrastructure.Providers.SqlServer;
 using DataBridge.Infrastructure.Security;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -30,6 +32,9 @@ public static class InfrastructureServiceCollectionExtensions
 
         // The OS-native store, or one that reports itself unavailable; never a plaintext fallback.
         services.AddSingleton(_ => CredentialStoreFactory.CreateForCurrentPlatform());
+
+        services.AddSingleton<IDatabaseProvider, SqlServerDatabaseProvider>();
+        services.AddSingleton<IDatabaseProviderFactory, DatabaseProviderFactory>();
 
         return services;
     }

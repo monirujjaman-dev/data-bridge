@@ -68,6 +68,27 @@ public sealed class ProfileSecretStore(
     }
 
     /// <summary>
+    /// Returns a profile's password: the session-only one if there is one, otherwise the one saved under
+    /// <paramref name="credentialReference"/> in the OS store. <see langword="null"/> when neither exists or the
+    /// store is unavailable, in which case the user must be asked (FR-CON-009).
+    /// </summary>
+    public async Task<Secret?> FindAsync(Guid profileId, string? credentialReference, CancellationToken cancellationToken)
+    {
+        if (sessionSecrets.Find(profileId) is { } sessionSecret)
+        {
+            return sessionSecret;
+        }
+
+        if (credentialReference is null)
+        {
+            return null;
+        }
+
+        var status = await credentialStore.GetStatusAsync(cancellationToken);
+        return status.IsAvailable ? await credentialStore.FindAsync(credentialReference, cancellationToken) : null;
+    }
+
+    /// <summary>
     /// Called after the profile row points at the pending password: drops the superseded password.
     /// Not cancellable, because the profile change is already saved. Returns a user-facing warning when the
     /// previous stored password could not be removed; otherwise <see langword="null"/>.

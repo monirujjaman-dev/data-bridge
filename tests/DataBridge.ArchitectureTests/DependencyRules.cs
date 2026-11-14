@@ -71,6 +71,9 @@ internal static class DependencyRules
         "Microsoft.Identity.Client",
         // Logging sinks (Microsoft.Extensions.Logging.Abstractions stays allowed)
         "Serilog",
+        // Test infrastructure
+        "Testcontainers",
+        "DotNet.Testcontainers",
     ];
 
     /// <summary>

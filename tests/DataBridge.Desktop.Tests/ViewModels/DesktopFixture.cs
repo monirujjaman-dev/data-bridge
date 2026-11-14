@@ -25,7 +25,11 @@ internal sealed class DesktopFixture : IDisposable
             [],
             new InfrastructureOptions(DatabasePath),
             new LoggingOptions(Path.Combine(_root, "logs")),
-            services => services.Replace(ServiceDescriptor.Singleton<ICredentialStore>(CredentialStore)));
+            services =>
+            {
+                services.Replace(ServiceDescriptor.Singleton<ICredentialStore>(CredentialStore));
+                services.Replace(ServiceDescriptor.Singleton<IDatabaseProvider>(DatabaseProvider));
+            });
     }
 
     public string DatabasePath => Path.Combine(_root, "databridge.db");
@@ -33,6 +37,8 @@ internal sealed class DesktopFixture : IDisposable
     public string LogDirectory => Path.Combine(_root, "logs");
 
     public FakeCredentialStore CredentialStore { get; } = new();
+
+    public FakeDatabaseProvider DatabaseProvider { get; } = new();
 
     public IServiceProvider Services => _host.Services;
 
@@ -113,5 +119,35 @@ internal sealed class FakeCredentialStore : ICredentialStore
         }
 
         return Task.CompletedTask;
+    }
+}
+
+/// <summary>A database provider that returns a prepared result instead of connecting.</summary>
+internal sealed class FakeDatabaseProvider : IDatabaseProvider
+{
+    public List<DatabaseConnectionRequest> Requests { get; } = [];
+
+    public DataBridge.Shared.Results.Result<DataBridge.Core.Connections.ResolvedDatabaseIdentity> Next { get; set; } =
+        DataBridge.Shared.Results.Result.Success(DataBridge.Core.Connections.ResolvedDatabaseIdentity.Create(
+            DataBridge.Core.Connections.DatabaseProviderType.SqlServer,
+            "DB01",
+            "Sales",
+            5,
+            "SQL Server 2022 (16.0.4135.4) Developer Edition (64-bit)",
+            "Latin1_General_CI_AS"));
+
+    public DataBridge.Core.Connections.DatabaseProviderType ProviderType => DataBridge.Core.Connections.DatabaseProviderType.SqlServer;
+
+    public Task<DataBridge.Shared.Results.Result<DataBridge.Core.Connections.ResolvedDatabaseIdentity>> ResolveIdentityAsync(
+        DatabaseConnectionRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (Requests)
+        {
+            Requests.Add(request);
+        }
+
+        return Task.FromResult(Next);
     }
 }
