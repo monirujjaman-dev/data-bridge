@@ -142,6 +142,23 @@
   </Style>
 
   <!--
+    Lists outside the rail select like grid rows: a pale OS-accent tint (16% at rest, 24% hovered), text stays
+    in text colour, no saturated fill, so glyphs and muted detail lines keep their contrast.
+  -->
+  <Style Selector="ListBox:not(.nav) ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background">
+      <SolidColorBrush Color="{DynamicResource SystemAccentColor}" Opacity="0.16" />
+    </Setter>
+    <Setter Property="Foreground" Value="{DynamicResource DbTextBrush}" />
+  </Style>
+  <Style Selector="ListBox:not(.nav) ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background">
+      <SolidColorBrush Color="{DynamicResource SystemAccentColor}" Opacity="0.24" />
+    </Setter>
+    <Setter Property="Foreground" Value="{DynamicResource DbTextBrush}" />
+  </Style>
+
+  <!--
     Route sign: the signature element. Source on the left, signage arrow, target on the right,
     separated by a heavy sign rule. Same yellow in both themes. Usage in DESIGN.md.
   -->

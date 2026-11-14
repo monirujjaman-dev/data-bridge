@@ -14,15 +14,26 @@ open decision it must close (`requirements.md` §10,
 
 ### Current status (2026-11-14)
 
-Phase 1 is in progress. Done: connection profile domain model
+Phase 1 is implemented; its acceptance closes with a green CI run of
+the Desktop shell pull request on all three operating systems. Done:
+connection profile domain model
 (`Core/Connections`), profile use cases and the repository and
 credential-store ports (`Application/Connections`,
 `Application/Abstractions`), and SQLite persistence with versioned
 migrations (`Infrastructure/Persistence/Sqlite`, ADR-0009), and OS
 credential-store adapters for Windows, macOS and Linux
 (`Infrastructure/Security`), and structured logging with redaction
-(`Infrastructure/Logging`). Remaining: the Desktop shell (host, DI,
-MVVM, navigation, theme, profile screens).
+(`Infrastructure/Logging`), and the Desktop shell
+(`src/DataBridge.Desktop`): Generic Host and DI composition root,
+CommunityToolkit.Mvvm view models, a navigation rail listing only
+screens whose use cases exist, the light/dark theme following the OS,
+and the Connections screen for creating, editing and deleting profiles.
+Acceptance evidence: view-model tests over the real composition
+(`tests/DataBridge.Desktop.Tests`) cover create, edit, delete,
+validation, cancellation, unexpected failures, the no-secure-store
+notice and the absence of secrets in SQLite and logs; the app was also
+started and driven on Windows. Phase 2 (SQL Server connectivity) is
+next.
 
 Phase 0 is complete. Done: solution and project
 structure, SDK pin, central package management,

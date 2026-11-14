@@ -319,7 +319,7 @@ The source-to-target sign at the top of every screen that involves two databases
 - **Two-line** (`DataGrid.two-line`, 48px): object name on the first line, muted caption detail (`TextBlock.secondary`) on the second; used for comparison results.
 - **Columns:** the scannable content takes the star column; truncated cells get an ellipsis and a tooltip with the full value; every column is at least header width plus sort-icon space, so headers never clip.
 - **Headers:** label style (12px Bold, muted), 12px left padding.
-- **Selection:** a pale OS-accent tint (16% at rest, 24% hovered), text stays in text colour, no edge stripe, so state glyphs keep their contrast.
+- **Selection:** a pale OS-accent tint (16% at rest, 24% hovered), text stays in text colour, no edge stripe, so state glyphs keep their contrast. Lists outside the navigation rail (for example the Connections profile list) select the same way.
 
 ### Panels, Toolbar, Status Bar
 - **Panel:** panel white, 1px hairline frame, 16px padding, square. **Sunken:** sunken tone, 12px padding, no frame (code wells).
