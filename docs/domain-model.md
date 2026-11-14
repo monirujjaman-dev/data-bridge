@@ -1,6 +1,6 @@
 # DataBridge --- Domain Model
 
-**Status:** Approved baseline (revision 2, 2026-11-14)
+**Status:** Approved baseline (revision 3, 2026-11-15)
 
 The C# shapes below are illustrative contracts, not final code. Names,
 fields and invariants are binding; exact signatures may be refined in
@@ -86,6 +86,8 @@ public sealed record DatabaseSchema(
     string DatabaseName,
     IReadOnlyList<SchemaDefinition> Schemas,
     IReadOnlyList<UnsupportedObject> UnsupportedObjects,
+    bool IdentifiersAreCaseSensitive, // from the database collation
+    bool HasCompleteMetadata,         // false without VIEW DEFINITION: objects may be hidden
     DateTimeOffset CapturedAtUtc);
 
 public sealed record SchemaDefinition(
@@ -99,25 +101,24 @@ public sealed record TableDefinition(
     DatabaseObjectId Id,
     IReadOnlyList<ColumnDefinition> Columns,
     PrimaryKeyDefinition? PrimaryKey,
+    IReadOnlyList<UniqueConstraintDefinition> UniqueConstraints,
     IReadOnlyList<ForeignKeyDefinition> ForeignKeys,
-    IReadOnlyList<IndexDefinition> Indexes,
-    IReadOnlyList<ConstraintDefinition> Constraints);
+    IReadOnlyList<CheckConstraintDefinition> CheckConstraints,
+    IReadOnlyList<DefaultConstraintDefinition> DefaultConstraints,
+    IReadOnlyList<IndexDefinition> Indexes);   // excludes indexes backing PK/unique constraints
 
 public sealed record ColumnDefinition(
     string Name,
-    string SqlTypeName,
-    int? MaxLength,          // in characters for (n)char/(n)varchar, bytes for binary; null = MAX
-    byte? Precision,
-    byte? Scale,
+    string SqlTypeName,      // alias types schema-qualified
+    int? MaxLength,          // in characters for (n)char/(n)varchar, bytes for binary; null = MAX or n/a
+    bool IsMaxLength,
+    byte? Precision,         // exact numerics only
+    byte? Scale,             // exact numerics and fractional-second temporal types only
     bool IsNullable,
-    bool IsIdentity,
-    decimal? IdentitySeed,
-    decimal? IdentityIncrement,
-    bool IsComputed,
-    bool IsComputedPersisted,
-    string? ComputedExpression,
+    IdentitySpecification? Identity,   // BigInteger seed and increment (up to 38 digits)
+    ComputedSpecification? Computed,   // expression and persisted flag
     string? CollationName,
-    int OrdinalPosition);
+    int OrdinalPosition);    // 1-based, gaps from dropped columns removed
 
 public sealed record UnsupportedObject(
     string SchemaName,
@@ -128,16 +129,17 @@ public sealed record UnsupportedObject(
 
 Additional types:
 
--   `ViewDefinition`
--   `ProgrammableObjectDefinition`
--   `SequenceDefinition`
--   `PrimaryKeyDefinition`
--   `ForeignKeyDefinition`
--   `IndexDefinition`
--   `IndexColumnDefinition`
--   `ConstraintDefinition`
--   `CheckConstraintDefinition`
--   `DefaultConstraintDefinition`
+-   `ViewDefinition` (module and indexes) and
+    `ProgrammableObjectDefinition` (procedures, functions, DML triggers
+    with `TriggerOptions`), both holding a `ModuleDefinition`: text
+    (null when encrypted or hidden), encryption, schema binding,
+    `ANSI_NULLS` and `QUOTED_IDENTIFIER`.
+-   `SequenceDefinition` (BigInteger values).
+-   `PrimaryKeyDefinition`, `UniqueConstraintDefinition`,
+    `ForeignKeyDefinition` (with `ForeignKeyColumnMapping` and
+    `ReferentialAction`), `CheckConstraintDefinition`,
+    `DefaultConstraintDefinition`; each carries `IsSystemNamed`.
+-   `IndexDefinition` with `IndexColumnDefinition` and `IndexOptions`.
 
 Column defaults are modeled only as `DefaultConstraintDefinition`
 (SQL Server default constraints are named objects), not duplicated on
@@ -147,11 +149,20 @@ Column defaults are modeled only as `DefaultConstraintDefinition`
 included-column status. Foreign keys must preserve ordered column
 mappings and referential actions.
 
+Engine-generated constraint names differ in every database. The
+comparer pairs two system-named constraints with the same definition
+when no constraint of the same name exists, and does not compare their
+names. SQL text is compared after a provider `ISqlDefinitionNormalizer`
+(FR-SCH-011).
+
 ## 5. Object identity
 
 ``` csharp
 public enum DatabaseObjectType
 {
+    // Database-scoped
+    Schema,
+
     // Schema-scoped objects
     Table,
     View,
@@ -186,6 +197,11 @@ not the table.
 
 Comparison policy for case sensitivity must be
 provider/database-collation aware. Do not globally lowercase names.
+Names match case-insensitively only when both databases compare
+identifiers case-insensitively; otherwise ordinally. The same name with
+different schema-scoped object kinds (a view and a table) is
+`Incompatible`. An object missing from a side without complete metadata
+is `Unknown`, not source- or target-only.
 
 ## 6. Typed data values
 
@@ -496,6 +512,12 @@ Track:
 
 ## 12. Revision history
 
+-   **Revision 3 (2026-11-15):** schema model as implemented in Phase 3:
+    `Schema` object type, case sensitivity and metadata completeness on
+    `DatabaseSchema`, constraint lists split by kind with
+    `IsSystemNamed`, identity and computed specifications, BigInteger
+    identity and sequence values, `ModuleDefinition`; matching rules for
+    system names, incompatible kinds and partial visibility.
 -   **Revision 2 (2026-11-14):** added `UserName`, `CredentialReference`
     and `ResolvedDatabaseIdentity`; sequences and unsupported objects in
     the schema model; child object identity with `ParentObjectName`;

@@ -157,15 +157,15 @@ public sealed class CompareSchemas(
 /// <summary>Schema comparison log events: ids, counts and durations only, never names or definitions.</summary>
 internal static partial class SchemaComparisonLog
 {
-    [LoggerMessage(EventId = 2000, Level = LogLevel.Information, Message = "Schema comparison started: source profile {SourceProfileId}, target profile {TargetProfileId}")]
+    [LoggerMessage(EventId = 3000, Level = LogLevel.Information, Message = "Schema comparison started: source profile {SourceProfileId}, target profile {TargetProfileId}")]
     public static partial void Started(ILogger logger, Guid sourceProfileId, Guid targetProfileId);
 
-    [LoggerMessage(EventId = 2001, Level = LogLevel.Information, Message = "Schema comparison completed: {ObjectCount} objects, {DifferenceCount} not equal, {UnsupportedCount} unsupported, {DurationMs} ms")]
+    [LoggerMessage(EventId = 3001, Level = LogLevel.Information, Message = "Schema comparison completed: {ObjectCount} objects, {DifferenceCount} not equal, {UnsupportedCount} unsupported, {DurationMs} ms")]
     public static partial void Completed(ILogger logger, int objectCount, int differenceCount, int unsupportedCount, double durationMs);
 
-    [LoggerMessage(EventId = 2002, Level = LogLevel.Information, Message = "Schema comparison failed: {ErrorCodes}")]
+    [LoggerMessage(EventId = 3002, Level = LogLevel.Information, Message = "Schema comparison failed: {ErrorCodes}")]
     public static partial void Failed(ILogger logger, string errorCodes);
 
-    [LoggerMessage(EventId = 2003, Level = LogLevel.Information, Message = "Schema comparison cancelled")]
+    [LoggerMessage(EventId = 3003, Level = LogLevel.Information, Message = "Schema comparison cancelled")]
     public static partial void Cancelled(ILogger logger);
 }

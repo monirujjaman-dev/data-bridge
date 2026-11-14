@@ -15,6 +15,9 @@
     <DataTemplate DataType="vm:ConnectionsViewModel">
       <views:ConnectionsView />
     </DataTemplate>
+    <DataTemplate DataType="vm:SchemaComparisonViewModel">
+      <views:SchemaComparisonView />
+    </DataTemplate>
   </Application.DataTemplates>
 
 </Application>
