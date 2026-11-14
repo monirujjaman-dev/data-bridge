@@ -2,8 +2,10 @@ using DataBridge.Application.Abstractions;
 using DataBridge.Infrastructure.Persistence.Sqlite;
 using DataBridge.Infrastructure.Providers;
 using DataBridge.Infrastructure.Providers.SqlServer;
+using DataBridge.Infrastructure.Providers.SqlServer.Schema;
 using DataBridge.Infrastructure.Security;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DataBridge.Infrastructure.DependencyInjection;
 
@@ -34,6 +36,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton(_ => CredentialStoreFactory.CreateForCurrentPlatform());
 
         services.AddSingleton<IDatabaseProvider, SqlServerDatabaseProvider>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<ISchemaReader, SqlServerSchemaReader>();
         services.AddSingleton<IDatabaseProviderFactory, DatabaseProviderFactory>();
 
         return services;

@@ -143,5 +143,7 @@ public sealed class TestConnectionTests
     private sealed class FakeProviderFactory(IDatabaseProvider provider) : IDatabaseProviderFactory
     {
         public IDatabaseProvider GetProvider(DatabaseProviderType providerType) => provider;
+
+        public ISchemaReader GetSchemaReader(DatabaseProviderType providerType) => throw new NotSupportedException();
     }
 }

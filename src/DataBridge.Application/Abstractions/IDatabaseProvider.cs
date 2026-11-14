@@ -30,9 +30,12 @@ public interface IDatabaseProvider
         CancellationToken cancellationToken);
 }
 
-/// <summary>Resolves the provider for a profile's database engine.</summary>
+/// <summary>Resolves a database engine's provider capabilities.</summary>
 public interface IDatabaseProviderFactory
 {
     /// <exception cref="NotSupportedException">No provider is registered for <paramref name="providerType"/>.</exception>
     IDatabaseProvider GetProvider(DatabaseProviderType providerType);
+
+    /// <exception cref="NotSupportedException">No schema reader is registered for <paramref name="providerType"/>.</exception>
+    ISchemaReader GetSchemaReader(DatabaseProviderType providerType);
 }
