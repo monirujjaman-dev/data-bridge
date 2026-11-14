@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Phase 0 is complete; Phase 1 is in progress. Connection profiles exist
 end to end below the UI (Core model, Application use cases and ports,
-SQLite repository and migrations); the Desktop project is not wired to
-them yet. `DataBridge.Desktop` is
+SQLite repository and migrations, OS credential stores); the Desktop
+project is not wired to them yet. `DataBridge.Desktop` is
 a placeholder Avalonia window that loads the visual design system
 (`PRODUCT.md`, `DESIGN.md`, `src/DataBridge.Desktop/Themes/`,
 `src/DataBridge.Desktop/Assets/`), drafted ahead of Phase 1. Read these

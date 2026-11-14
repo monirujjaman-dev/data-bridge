@@ -3,6 +3,8 @@
   <!-- SQL Server provider, local persistence and credential-store adapters. -->
   <PropertyGroup>
     <RootNamespace>DataBridge.Infrastructure</RootNamespace>
+    <!-- The OS credential-store adapters call native APIs through source-generated P/Invoke and function pointers. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

@@ -349,6 +349,17 @@ Application port:
 
 There is no plaintext or obfuscated fallback.
 
+The adapters (`Infrastructure/Security`) call the OS APIs directly,
+with no third-party packages: `CredWriteW`/`CredReadW` (generic
+credentials, per user), the `SecItem` API, and libsecret's
+non-variadic `secret_password_*v_sync` functions. macOS and Linux
+libraries are loaded at run time, so a missing library makes the store
+report itself unavailable instead of crashing. Store keys
+(`DataBridge/connection-profile/<profile id>/<random suffix>`) contain
+no user data. A new password is always written to a new key, and the
+old key is deleted only after the profile row points at the new one,
+so a failed save never loses the previous password.
+
 ## 12. UI architecture
 
 -   Avalonia + MVVM + CommunityToolkit.Mvvm.

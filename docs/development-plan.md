@@ -18,9 +18,11 @@ Phase 1 is in progress. Done: connection profile domain model
 (`Core/Connections`), profile use cases and the repository and
 credential-store ports (`Application/Connections`,
 `Application/Abstractions`), and SQLite persistence with versioned
-migrations (`Infrastructure/Persistence/Sqlite`, ADR-0009). Remaining:
-OS credential-store adapters, structured logging and redaction, and the
-Desktop shell (host, DI, MVVM, navigation, theme, profile screens).
+migrations (`Infrastructure/Persistence/Sqlite`, ADR-0009), and OS
+credential-store adapters for Windows, macOS and Linux
+(`Infrastructure/Security`). Remaining: structured logging and
+redaction, and the Desktop shell (host, DI, MVVM, navigation, theme,
+profile screens).
 
 Phase 0 is complete. Done: solution and project
 structure, SDK pin, central package management,

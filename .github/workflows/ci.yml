@@ -57,5 +57,26 @@ jobs:
       - name: Build
         run: dotnet build DataBridge.sln --configuration Release --no-restore -warnaserror
 
+      # The credential-store tests use the real OS store. CI requires one, so a missing store fails the
+      # run instead of skipping those tests. Linux runners have no Secret Service, so start one.
+      - name: Install a Secret Service
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends gnome-keyring dbus-x11 libsecret-1-0
+
       - name: Test
+        if: runner.os != 'Linux'
+        env:
+          DATABRIDGE_REQUIRE_CREDENTIAL_STORE: "true"
         run: dotnet test --solution DataBridge.sln --configuration Release --no-build
+
+      - name: Test (in a D-Bus session with an unlocked keyring)
+        if: runner.os == 'Linux'
+        env:
+          DATABRIDGE_REQUIRE_CREDENTIAL_STORE: "true"
+        run: |
+          dbus-run-session -- bash -c '
+            printf "databridge-ci" | gnome-keyring-daemon --unlock --components=secrets > /dev/null
+            dotnet test --solution DataBridge.sln --configuration Release --no-build
+          '

@@ -44,6 +44,9 @@ Prerequisites:
 -   The .NET 10 SDK, version 10.0.400 or a later 10.0.4xx patch (pinned
     in `global.json`).
 -   Windows 10 or later, a recent Linux desktop distribution, or macOS.
+-   On Linux, saving passwords needs libsecret (`libsecret-1-0`) and a
+    running Secret Service such as GNOME Keyring or KWallet. Without
+    one, DataBridge still works but asks for passwords each session.
 
 ``` text
 git clone git@github.com:monirujjaman-dev/data-bridge.git
@@ -58,6 +61,11 @@ Benchmarks run on demand in Release:
 ``` text
 dotnet run -c Release --project benchmarks/DataBridge.Benchmarks
 ```
+
+The credential-store tests save and delete throwaway entries (prefixed
+`DataBridge/tests/`) in your real OS credential store. They are skipped
+when no store is available, unless `DATABRIDGE_REQUIRE_CREDENTIAL_STORE`
+is `true`, as in CI.
 
 Integration tests will need a disposable SQL Server instance once they
 exist (Phase 2). Never point them at a database you care about.
