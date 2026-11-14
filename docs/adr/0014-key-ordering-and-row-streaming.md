@@ -24,8 +24,9 @@ Phase 4. FR-DAT-009 allows keyset pagination or ordered streaming.
     `nchar`/`nvarchar` keys use `COLLATE Latin1_General_100_BIN2`;
     `char`/`varchar` keys are first cast to `nvarchar` so the order is
     by character, not by code-page byte. In memory, text keys compare
-    ordinally after removing trailing spaces, because SQL Server pads
-    with spaces when comparing (`'a'` and `'a '` are the same key).
+    ordinally as if the shorter one were padded with spaces, as SQL
+    Server compares (`'a'` and `'a '` are the same key, and a tab
+    sorts below the padding).
 -   **Other keys use the server's natural order.** Numbers, dates and
     times, `bit` and binary compare naturally; `datetimeoffset` compares
     by UTC instant; `uniqueidentifier` uses SQL Server's byte-group order
@@ -37,6 +38,17 @@ Phase 4. FR-DAT-009 allows keyset pagination or ordered streaming.
     reason is reported. Two sorted sequences that disagree must have an
     adjacent inversion, so any disagreement between server and comparer
     on the data actually read is caught.
+-   **Matched keys are also compared exactly.** Keys equal under the
+    ordering can differ as stored (trailing spaces, a `datetimeoffset`
+    offset); such a row is reported as modified on the key column.
+-   **Columns compare only when their stored values compare exactly.**
+    The provider decides: for SQL Server, `char`/`nchar`/`binary` only
+    with fixed-length columns of the same length, and date-times and
+    floating point only within the same type. Other pairs are excluded
+    with a reason, or rejected as keys.
+-   **Bounded by bytes as well as rows.** A batch also ends at about
+    16 MB of values. Stopping a table early cancels its command instead
+    of letting SqlClient drain the remaining rows.
 -   **Matching is exact.** Keys that a case- or accent-insensitive
     database treats as equal (`'abc'`, `'ABC'`) are matched as different
     rows and shown as source-only and target-only. Whether a target
