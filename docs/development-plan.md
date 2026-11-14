@@ -14,6 +14,18 @@ open decision it must close (`requirements.md` §10,
 
 ### Current status (2026-11-15)
 
+Phase 4 is in progress. Decided: key ordering, row streaming and read
+consistency (ADR-0014). Done: typed values, key ordering and row
+fingerprints (`Core/Data`), table planning and the ordered merge with
+order and duplicate verification (`Core/Comparison`), the
+`IDataReaderProvider` port and the `ListDataComparisonTables` and
+`CompareData` use cases (`Application/DataComparison`), the SQL Server
+row reader (`Infrastructure/Providers/SqlServer/Data`), integration
+tests for the Phase 4 acceptance cases, a bounded-memory performance
+test, a merge benchmark, and the Data comparison screen. Acceptance
+still needs a green CI run on all three operating systems and the
+screen driven against real databases.
+
 Phase 3 is complete; Phase 4 (data comparison) is next. Decided: object
 scope beyond §6.2 (ADR-0012) and no DacFx for schema reading
 (ADR-0013). Done: the schema model and
@@ -330,6 +342,7 @@ Covers: NFR-PER-001, NFR-PORT-001, NFR-TEST-002, AC-13.
 
 ## 13. Revision history
 
+-   **Revision 4 (2026-11-15):** Phase 4 status.
 -   **Revision 3 (2026-11-15):** Phase 3 complete.
 -   **Revision 2 (2026-11-14):** added current status, requirement
     coverage and decisions to close per phase, three-OS CI, credential

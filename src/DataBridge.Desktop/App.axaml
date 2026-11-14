@@ -18,6 +18,9 @@
     <DataTemplate DataType="vm:SchemaComparisonViewModel">
       <views:SchemaComparisonView />
     </DataTemplate>
+    <DataTemplate DataType="vm:DataComparisonViewModel">
+      <views:DataComparisonView />
+    </DataTemplate>
   </Application.DataTemplates>
 
 </Application>
