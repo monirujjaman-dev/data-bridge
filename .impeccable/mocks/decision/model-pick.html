@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>DataBridge · Interlocking</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font:13px/1.45 "Atkinson Hyperlegible Next",sans-serif;background:#2A2F33;color:#F2F2EE;display:grid;grid-template-columns:200px 1fr}
+nav{background:#20252A;padding:16px 0;color:#A9B0B5}nav b{display:block;color:#F2F2EE;font-size:15px;padding:0 16px 24px}
+nav a{display:block;padding:8px 16px}nav a.on{color:#fff;background:#343A3F}
+main{display:grid;grid-template-rows:64px 1fr 220px}
+header{display:flex;align-items:center;gap:24px;padding:0 24px;border-bottom:1px solid #41484E}
+header strong{font-size:20px}.lock{margin-left:auto;color:#E8A33D;font-weight:700;letter-spacing:.08em;font-size:11px}
+.diag{position:relative;padding:32px}
+.trk{position:absolute;height:4px;background:#F2F2EE}
+.trk.off{background:#4C545A}
+.st{position:absolute;background:#2A2F33;border:2px solid #F2F2EE;padding:6px 12px;font-size:12px}
+.st i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:#2FA35A}
+.st.red i{background:#D2332B}.st.off{border-color:#4C545A;color:#7E878D}
+.term{position:absolute;right:48px;top:150px;border:3px solid #F2F2EE;padding:12px 16px}
+.term small{display:block;font-size:11px;color:#A9B0B5;letter-spacing:.1em}.term b{font-size:20px}
+.low{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #41484E}
+.low div{padding:16px;border-right:1px solid #41484E}
+pre{font:12px/1.6 "JetBrains Mono",monospace;color:#D7DBD6}
+h3{font-size:11px;letter-spacing:.1em;color:#A9B0B5;margin-bottom:8px}
+button{font:inherit;font-weight:600;padding:8px 16px;background:#2FA35A;border:0;color:#fff;margin-top:12px}
+</style></head><body>
+<nav><b>DataBridge</b><a>Dashboard</a><a>Connections</a><a>Schema comparison</a><a>Data comparison</a><a class="on">Synchronization</a><a>Execution</a><a>History</a></nav>
+<main>
+<header><strong>Plan 7f3a · Sales → Sales_QA</strong><span>23 operations · 4 dependency levels</span><span class="lock">■ ROUTE NOT LOCKED · AWAITING APPROVAL</span></header>
+<div class="diag">
+ <div class="trk" style="left:60px;top:170px;width:1000px"></div>
+ <div class="trk" style="left:300px;top:90px;width:400px"></div>
+ <div class="trk off" style="left:300px;top:260px;width:500px"></div>
+ <div class="st" style="left:40px;top:155px"><i></i>CREATE sales.Promotions</div>
+ <div class="st" style="left:300px;top:75px"><i></i>ALTER dbo.Orders</div>
+ <div class="st" style="left:560px;top:155px"><i></i>CREATE IX_Orders_Customer</div>
+ <div class="st" style="left:760px;top:75px"><i></i>ALTER FK_Lines_Orders</div>
+ <div class="st red off" style="left:420px;top:245px"><i></i>DROP dbo.LegacyInvoices · excluded</div>
+ <div class="term"><small>TERMINUS · TARGET</small><b>sql-test-02 / Sales_QA</b></div>
+</div>
+<div class="low"><div><h3>SQL · STEP 2 OF 23</h3><pre>ALTER TABLE [dbo].[Orders]
+  ALTER COLUMN [ShippedAtUtc] datetime2(7) NULL;</pre></div>
+<div><h3>VALIDATION</h3><p>✓ Dependencies ordered · ✓ Permissions · ✓ Target fingerprint matches<br>⚠ 1 destructive operation excluded</p><button>Approve and lock plan</button></div></div>
+</main></body></html>

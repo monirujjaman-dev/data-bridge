@@ -1,0 +1,89 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-11-14T14:32:11.421Z",
+        "reason": "Claude: decision-round HTML sketch rendered only as a skeleton thumbnail on the decision page; never shipped"
+      },
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-11-14T14:32:11.615Z",
+        "reason": "Claude: decision-round HTML sketch rendered only as a skeleton thumbnail on the decision page; never shipped"
+      },
+      {
+        "rule": "tight-leading",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/challenger-splitflap.html"
+        ],
+        "createdAt": "2026-11-14T14:32:11.782Z",
+        "reason": "Claude: decision-round HTML sketch rendered only as a skeleton thumbnail on the decision page; never shipped"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-11-14T14:32:11.942Z",
+        "reason": "Claude: decision-round HTML sketch rendered only as a skeleton thumbnail on the decision page; never shipped"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-11-14T14:44:54.865Z",
+        "reason": "Claude: decision-round HTML sketch (never shipped); fonts are the DESIGN.md faces or pre-decision candidates"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/model-pick.html"
+        ],
+        "createdAt": "2026-11-14T14:44:55.041Z",
+        "reason": "Claude: decision-round HTML sketch (never shipped); fonts are the DESIGN.md faces or pre-decision candidates"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/challenger-ticket.html"
+        ],
+        "createdAt": "2026-11-14T14:44:55.224Z",
+        "reason": "Claude: decision-round HTML sketch (never shipped); fonts are the DESIGN.md faces or pre-decision candidates"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/challenger-splitflap.html"
+        ],
+        "createdAt": "2026-11-14T14:44:55.405Z",
+        "reason": "Claude: decision-round HTML sketch (never shipped); fonts are the DESIGN.md faces or pre-decision candidates"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-11-14T14:44:55.589Z",
+        "reason": "Claude: decision-round HTML sketch (never shipped); fonts are the DESIGN.md faces or pre-decision candidates"
+      }
+    ]
+  }
+}

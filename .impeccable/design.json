@@ -1,0 +1,934 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-14T14:43:59.518Z",
+  "title": "Design System: DataBridge",
+  "extensions": {
+    "colorMeta": {
+      "sign-yellow": {
+        "role": "primary",
+        "displayName": "Sign Yellow",
+        "canonical": "#FFCC00",
+        "oklch": "oklch(86.5% 0.177 90.4)",
+        "tonalRamp": [
+          "#140900",
+          "#3A2100",
+          "#633D00",
+          "#8D5C00",
+          "#B28100",
+          "#D8A700",
+          "#F2CD64",
+          "#FFEDA3"
+        ]
+      },
+      "sign-lettering": {
+        "role": "primary",
+        "displayName": "Sign Lettering Anthracite",
+        "canonical": "#1E2124",
+        "oklch": "oklch(24.6% 0.007 248.1)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#252728",
+          "#424548",
+          "#63666A",
+          "#868A8D",
+          "#AAAEB2",
+          "#CED1D4",
+          "#ECEFF1"
+        ]
+      },
+      "sign-lettering-muted": {
+        "role": "primary",
+        "displayName": "Sign Lettering Muted",
+        "canonical": "#4A4220",
+        "oklch": "oklch(37.9% 0.052 96.4)",
+        "tonalRamp": [
+          "#0D0B04",
+          "#2B2615",
+          "#4C4529",
+          "#6F6643",
+          "#928A65",
+          "#B7AE8A",
+          "#D8D1B5",
+          "#F4EFDA"
+        ]
+      },
+      "sign-alert-red": {
+        "role": "primary",
+        "displayName": "Alert Sign Red",
+        "canonical": "#B3261E",
+        "oklch": "oklch(50.1% 0.178 28.7)",
+        "tonalRamp": [
+          "#1E0101",
+          "#4E0403",
+          "#830D0A",
+          "#B62921",
+          "#E05446",
+          "#FF7C6C",
+          "#FFAF9F",
+          "#FFD6CA"
+        ]
+      },
+      "rail-anthracite": {
+        "role": "secondary",
+        "displayName": "Rail Anthracite",
+        "canonical": "#1E2124",
+        "oklch": "oklch(24.6% 0.007 248.1)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#252728",
+          "#424548",
+          "#63666A",
+          "#868A8D",
+          "#AAAEB2",
+          "#CED1D4",
+          "#ECEFF1"
+        ]
+      },
+      "rail-anthracite-dark": {
+        "role": "secondary",
+        "displayName": "Rail Anthracite (dark)",
+        "canonical": "#17191B",
+        "oklch": "oklch(21.2% 0.005 248.1)",
+        "tonalRamp": [
+          "#0B0B0C",
+          "#252728",
+          "#434547",
+          "#646669",
+          "#87898C",
+          "#ABAEB1",
+          "#CFD1D3",
+          "#EDEFF0"
+        ]
+      },
+      "rail-selected": {
+        "role": "secondary",
+        "displayName": "Rail Selected",
+        "canonical": "#2E3236",
+        "oklch": "oklch(31.5% 0.009 248.1)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#242729",
+          "#424549",
+          "#62676B",
+          "#858A8E",
+          "#AAAEB3",
+          "#CED1D5",
+          "#ECEFF2"
+        ]
+      },
+      "rail-selected-dark": {
+        "role": "secondary",
+        "displayName": "Rail Selected (dark)",
+        "canonical": "#272B2E",
+        "oklch": "oklch(28.6% 0.008 240.1)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#242728",
+          "#424648",
+          "#62676A",
+          "#858A8D",
+          "#AAAFB2",
+          "#CED1D4",
+          "#ECEFF1"
+        ]
+      },
+      "rail-lettering": {
+        "role": "secondary",
+        "displayName": "Rail Lettering",
+        "canonical": "#FFFFFF",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#262626",
+          "#454545",
+          "#666666",
+          "#898989",
+          "#AEAEAE",
+          "#D1D1D1",
+          "#EEEEEE"
+        ]
+      },
+      "rail-lettering-muted": {
+        "role": "secondary",
+        "displayName": "Rail Lettering Muted",
+        "canonical": "#B9BDB8",
+        "oklch": "oklch(79.4% 0.008 139.4)",
+        "tonalRamp": [
+          "#0B0B0A",
+          "#252725",
+          "#434642",
+          "#646763",
+          "#878A86",
+          "#ABAFAA",
+          "#CFD2CE",
+          "#EDEFEC"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "#F4F5F2",
+        "oklch": "oklch(96.9% 0.004 121.6)",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#262725",
+          "#454543",
+          "#666664",
+          "#898987",
+          "#ADAEAB",
+          "#D0D1CF",
+          "#EEEFED"
+        ]
+      },
+      "ground-dark": {
+        "role": "neutral",
+        "displayName": "Ground (dark)",
+        "canonical": "#1E2124",
+        "oklch": "oklch(24.6% 0.007 248.1)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#252728",
+          "#424548",
+          "#63666A",
+          "#868A8D",
+          "#AAAEB2",
+          "#CED1D4",
+          "#ECEFF1"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "canonical": "#FFFFFF",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#262626",
+          "#454545",
+          "#666666",
+          "#898989",
+          "#AEAEAE",
+          "#D1D1D1",
+          "#EEEEEE"
+        ]
+      },
+      "panel-dark": {
+        "role": "neutral",
+        "displayName": "Panel (dark)",
+        "canonical": "#272B2E",
+        "oklch": "oklch(28.6% 0.008 240.1)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#242728",
+          "#424648",
+          "#62676A",
+          "#858A8D",
+          "#AAAFB2",
+          "#CED1D4",
+          "#ECEFF1"
+        ]
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Sunken",
+        "canonical": "#EDEEEA",
+        "oklch": "oklch(94.7% 0.005 117.9)",
+        "tonalRamp": [
+          "#0B0B0A",
+          "#262725",
+          "#454543",
+          "#666663",
+          "#898A86",
+          "#ADAEAB",
+          "#D1D1CE",
+          "#EEEFEC"
+        ]
+      },
+      "sunken-dark": {
+        "role": "neutral",
+        "displayName": "Sunken (dark)",
+        "canonical": "#191C1E",
+        "oklch": "oklch(22.4% 0.006 236.8)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#252728",
+          "#434547",
+          "#636769",
+          "#868A8C",
+          "#ABAEB1",
+          "#CED1D3",
+          "#ECEFF0"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#DADDD6",
+        "oklch": "oklch(89.3% 0.010 125.7)",
+        "tonalRamp": [
+          "#0B0B0A",
+          "#262724",
+          "#444641",
+          "#656761",
+          "#888A84",
+          "#ACAFA9",
+          "#D0D2CD",
+          "#EDEFEB"
+        ]
+      },
+      "hairline-dark": {
+        "role": "neutral",
+        "displayName": "Hairline (dark)",
+        "canonical": "#3A3F43",
+        "oklch": "oklch(36.4% 0.010 241.9)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#242729",
+          "#414649",
+          "#61676B",
+          "#848A8F",
+          "#A9AFB3",
+          "#CDD2D5",
+          "#EBEFF2"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "#1E2124",
+        "oklch": "oklch(24.6% 0.007 248.1)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#252728",
+          "#424548",
+          "#63666A",
+          "#868A8D",
+          "#AAAEB2",
+          "#CED1D4",
+          "#ECEFF1"
+        ]
+      },
+      "rule-dark": {
+        "role": "neutral",
+        "displayName": "Rule (dark)",
+        "canonical": "#EEEEEA",
+        "oklch": "oklch(94.8% 0.005 106.5)",
+        "tonalRamp": [
+          "#0B0B0A",
+          "#262625",
+          "#454542",
+          "#666663",
+          "#898986",
+          "#AEAEAA",
+          "#D1D1CE",
+          "#EEEEEC"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Text",
+        "canonical": "#1E2124",
+        "oklch": "oklch(24.6% 0.007 248.1)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#252728",
+          "#424548",
+          "#63666A",
+          "#868A8D",
+          "#AAAEB2",
+          "#CED1D4",
+          "#ECEFF1"
+        ]
+      },
+      "text-dark": {
+        "role": "neutral",
+        "displayName": "Text (dark)",
+        "canonical": "#EEEEEA",
+        "oklch": "oklch(94.8% 0.005 106.5)",
+        "tonalRamp": [
+          "#0B0B0A",
+          "#262625",
+          "#454542",
+          "#666663",
+          "#898986",
+          "#AEAEAA",
+          "#D1D1CE",
+          "#EEEEEC"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Text Muted",
+        "canonical": "#565C58",
+        "oklch": "oklch(46.8% 0.010 156.8)",
+        "tonalRamp": [
+          "#0A0C0B",
+          "#242725",
+          "#424643",
+          "#626864",
+          "#858B87",
+          "#A9B0AB",
+          "#CDD2CF",
+          "#ECF0ED"
+        ]
+      },
+      "text-muted-dark": {
+        "role": "neutral",
+        "displayName": "Text Muted (dark)",
+        "canonical": "#A9AEAA",
+        "oklch": "oklch(74.6% 0.008 151.8)",
+        "tonalRamp": [
+          "#0A0B0B",
+          "#252725",
+          "#424643",
+          "#636764",
+          "#868B87",
+          "#AAAFAB",
+          "#CED2CF",
+          "#ECEFED"
+        ]
+      },
+      "code": {
+        "role": "neutral",
+        "displayName": "Code",
+        "canonical": "#1E2124",
+        "oklch": "oklch(24.6% 0.007 248.1)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#252728",
+          "#424548",
+          "#63666A",
+          "#868A8D",
+          "#AAAEB2",
+          "#CED1D4",
+          "#ECEFF1"
+        ]
+      },
+      "code-dark": {
+        "role": "neutral",
+        "displayName": "Code (dark)",
+        "canonical": "#DCDDD8",
+        "oklch": "oklch(89.5% 0.007 115.7)",
+        "tonalRamp": [
+          "#0B0B0A",
+          "#262724",
+          "#454542",
+          "#666762",
+          "#898A85",
+          "#ADAEAA",
+          "#D1D1CE",
+          "#EEEFEC"
+        ]
+      },
+      "state-add": {
+        "role": "tertiary",
+        "displayName": "State Add",
+        "canonical": "#1F7A4D",
+        "oklch": "oklch(51.5% 0.110 156.8)",
+        "tonalRamp": [
+          "#000F05",
+          "#002F19",
+          "#005330",
+          "#1D784B",
+          "#489D6E",
+          "#70C392",
+          "#A5E2BC",
+          "#CFFBDF"
+        ]
+      },
+      "state-add-dark": {
+        "role": "tertiary",
+        "displayName": "State Add (dark)",
+        "canonical": "#5BC07F",
+        "oklch": "oklch(73.0% 0.134 153.3)",
+        "tonalRamp": [
+          "#001004",
+          "#003112",
+          "#005525",
+          "#007B3F",
+          "#38A061",
+          "#64C686",
+          "#9EE4B3",
+          "#CAFED8"
+        ]
+      },
+      "state-info": {
+        "role": "tertiary",
+        "displayName": "State Info",
+        "canonical": "#2B5FB4",
+        "oklch": "oklch(49.7% 0.146 259.8)",
+        "tonalRamp": [
+          "#020A1F",
+          "#0A244F",
+          "#184286",
+          "#2F63B8",
+          "#5188E0",
+          "#77AEFF",
+          "#A7D2FF",
+          "#D0F0FF"
+        ]
+      },
+      "state-info-dark": {
+        "role": "tertiary",
+        "displayName": "State Info (dark)",
+        "canonical": "#7EA6F2",
+        "oklch": "oklch(72.7% 0.120 262.6)",
+        "tonalRamp": [
+          "#040A1B",
+          "#132548",
+          "#26437B",
+          "#4064AA",
+          "#6188D1",
+          "#86ADF8",
+          "#B2D2FF",
+          "#D8EFFF"
+        ]
+      },
+      "state-caution": {
+        "role": "tertiary",
+        "displayName": "State Caution",
+        "canonical": "#A34A00",
+        "oklch": "oklch(51.5% 0.137 49.7)",
+        "tonalRamp": [
+          "#190500",
+          "#441700",
+          "#732C00",
+          "#A14900",
+          "#C96D33",
+          "#F1935D",
+          "#FFBE95",
+          "#FFE1C3"
+        ]
+      },
+      "state-caution-dark": {
+        "role": "tertiary",
+        "displayName": "State Caution (dark)",
+        "canonical": "#F59E4A",
+        "oklch": "oklch(77.2% 0.143 61.8)",
+        "tonalRamp": [
+          "#180600",
+          "#421900",
+          "#703000",
+          "#9D4E00",
+          "#C5720B",
+          "#EC9846",
+          "#FFC288",
+          "#FFE4BA"
+        ]
+      },
+      "state-danger": {
+        "role": "tertiary",
+        "displayName": "State Danger",
+        "canonical": "#B3261E",
+        "oklch": "oklch(50.1% 0.178 28.7)",
+        "tonalRamp": [
+          "#1E0101",
+          "#4E0403",
+          "#830D0A",
+          "#B62921",
+          "#E05446",
+          "#FF7C6C",
+          "#FFAF9F",
+          "#FFD6CA"
+        ]
+      },
+      "state-danger-dark": {
+        "role": "tertiary",
+        "displayName": "State Danger (dark)",
+        "canonical": "#F2766B",
+        "oklch": "oklch(70.8% 0.155 26.9)",
+        "tonalRamp": [
+          "#1C0202",
+          "#490D0B",
+          "#7C1D1A",
+          "#AD3732",
+          "#D75D54",
+          "#FF8579",
+          "#FFB4A9",
+          "#FFDAD0"
+        ]
+      },
+      "state-excluded": {
+        "role": "tertiary",
+        "displayName": "State Excluded",
+        "canonical": "#5A605C",
+        "oklch": "oklch(48.2% 0.010 156.8)",
+        "tonalRamp": [
+          "#0A0C0B",
+          "#242725",
+          "#424643",
+          "#626864",
+          "#858B87",
+          "#A9B0AB",
+          "#CDD2CF",
+          "#ECEFED"
+        ]
+      },
+      "state-excluded-dark": {
+        "role": "tertiary",
+        "displayName": "State Excluded (dark)",
+        "canonical": "#989E99",
+        "oklch": "oklch(69.3% 0.010 150.6)",
+        "tonalRamp": [
+          "#0A0C0A",
+          "#242725",
+          "#424643",
+          "#626863",
+          "#858B86",
+          "#AAB0AB",
+          "#CED2CE",
+          "#ECEFED"
+        ]
+      },
+      "surface-add": {
+        "role": "tertiary",
+        "displayName": "Surface Add",
+        "canonical": "#E4F2EA",
+        "oklch": "oklch(94.8% 0.018 161.1)",
+        "tonalRamp": [
+          "#090C0A",
+          "#222825",
+          "#3E4842",
+          "#5D6963",
+          "#808D86",
+          "#A5B2AA",
+          "#CAD4CE",
+          "#E9F1EC"
+        ]
+      },
+      "surface-add-dark": {
+        "role": "tertiary",
+        "displayName": "Surface Add (dark)",
+        "canonical": "#233429",
+        "oklch": "oklch(30.6% 0.030 155.8)",
+        "tonalRamp": [
+          "#080C09",
+          "#202923",
+          "#3A493F",
+          "#596B5F",
+          "#7B8F82",
+          "#A0B4A6",
+          "#C6D6CB",
+          "#E6F2EA"
+        ]
+      },
+      "surface-caution": {
+        "role": "tertiary",
+        "displayName": "Surface Caution",
+        "canonical": "#FCEEDF",
+        "oklch": "oklch(95.6% 0.025 69.4)",
+        "tonalRamp": [
+          "#0D0B08",
+          "#2B251F",
+          "#4D4339",
+          "#706457",
+          "#938779",
+          "#B8AC9E",
+          "#D9CFC4",
+          "#F5EDE5"
+        ]
+      },
+      "surface-caution-dark": {
+        "role": "tertiary",
+        "displayName": "Surface Caution (dark)",
+        "canonical": "#3A3024",
+        "oklch": "oklch(31.6% 0.025 71.8)",
+        "tonalRamp": [
+          "#0D0B08",
+          "#2B251F",
+          "#4C4339",
+          "#6F6457",
+          "#938779",
+          "#B8AC9E",
+          "#D9CFC4",
+          "#F4EDE5"
+        ]
+      },
+      "surface-danger": {
+        "role": "tertiary",
+        "displayName": "Surface Danger",
+        "canonical": "#FBEAE8",
+        "oklch": "oklch(95.0% 0.019 25.6)",
+        "tonalRamp": [
+          "#0E0A0A",
+          "#2C2424",
+          "#4D4241",
+          "#716261",
+          "#948583",
+          "#B9AAA8",
+          "#DACECC",
+          "#F5ECEB"
+        ]
+      },
+      "surface-danger-dark": {
+        "role": "tertiary",
+        "displayName": "Surface Danger (dark)",
+        "canonical": "#3A2826",
+        "oklch": "oklch(29.8% 0.028 26.0)",
+        "tonalRamp": [
+          "#0F0A09",
+          "#2E2422",
+          "#51403E",
+          "#75605E",
+          "#998380",
+          "#BFA8A5",
+          "#DECCCA",
+          "#F8EBE9"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Database names on the route sign."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Screen or dialog titles."
+      },
+      "subtitle": {
+        "displayName": "Subtitle",
+        "purpose": "Tabs, sign detail lines, in-panel section headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default for controls and grid cells."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Metadata, two-line row details, status text (muted)."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Tracked capitals naming a sign field, panel or grid column; never an eyebrow."
+      },
+      "numeric": {
+        "displayName": "Numeric",
+        "purpose": "Tabular figures for grids and counts."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "SQL, identifiers and measured values only; never soft-wraps."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay",
+        "value": "Fluent stock overlay shadow",
+        "purpose": "Menus, flyouts, tooltips and dialogs only; panels never cast shadows."
+      }
+    ],
+    "motion": [
+      {
+        "name": "instant",
+        "value": "0ms",
+        "purpose": "All authored state changes apply immediately."
+      }
+    ],
+    "focus": [
+      {
+        "name": "focus-adorner",
+        "value": "2px solid OS accent, 3px outside the control",
+        "purpose": "Every focusable element."
+      }
+    ],
+    "accent": {
+      "source": "Operating system accent via FluentTheme (deliberately unset in the theme)",
+      "standInForPreview": "#0067C0",
+      "uses": [
+        "focus",
+        "grid and text selection",
+        "primary buttons",
+        "active tab underline",
+        "progress fill"
+      ]
+    },
+    "selection": {
+      "dataGridRowOpacity": {
+        "rest": 0.16,
+        "hovered": 0.24
+      },
+      "fill": "OS accent",
+      "edgeStripe": false
+    },
+    "glyphGrid": "16x16 PathIcon geometry in src/DataBridge.Desktop/Themes/Icons.axaml; logo on 64x64 (Assets/Brand/databridge-icon.svg)",
+    "sizes": {
+      "rowHeight": "32px",
+      "twoLineRowHeight": "48px",
+      "railWidth": "200px",
+      "signMinHeight": "112px",
+      "toolbarMinHeight": "40px",
+      "signArrow": "56px",
+      "signRule": "8px",
+      "progressHeight": "6px",
+      "calloutBorder": "2px"
+    },
+    "themes": {
+      "light": "base keys",
+      "dark": "keys suffixed -dark; sign, alert sign, rail lettering and app mark are static across themes"
+    },
+    "usage": "App.axaml: StyleInclude avares://DataBridge.Desktop/Themes/DataBridgeTheme.axaml with RequestedThemeVariant=\"Default\"; packages Avalonia.Themes.Fluent and Avalonia.Controls.DataGrid; Themes and Assets/Fonts as AvaloniaResource in DataBridge.Desktop.",
+    "futureDirections": [
+      "Workflow \"you are here\" sign strip",
+      "Rail pictograms",
+      "Heavy rule under grid headers"
+    ]
+  },
+  "components": [
+    {
+      "name": "Route Sign",
+      "kind": "custom",
+      "refersTo": "route-sign",
+      "description": "Signature element: source left, signage arrow, heavy rule, target right. Same yellow in both themes.",
+      "html": "<div class=\"ds-route-sign\"><div class=\"ds-sign-side\"><div class=\"ds-sign-label\">SOURCE · READ ONLY</div><div class=\"ds-sign-name\">Sales</div><div class=\"ds-sign-detail\">sql-prod-01.corp.local · SQL Server 2022</div></div><svg viewBox=\"0 0 16 16\" width=\"56\" height=\"56\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M1,6.5 H9.4 L5.6,2.7 H9.6 L14.9,8 L9.6,13.3 H5.6 L9.4,9.5 H1 Z\"/></svg><div class=\"ds-sign-rule\"></div><div class=\"ds-sign-side\"><div class=\"ds-sign-label\">TARGET · WILL BE CHANGED</div><div class=\"ds-sign-name\">Sales_QA</div><div class=\"ds-sign-detail\">sql-test-02.corp.local · SQL Server 2019</div></div></div>",
+      "css": ".ds-route-sign { display: flex; align-items: center; gap: 16px; background: #FFCC00; color: #1E2124; border-bottom: 2px solid #1E2124; padding: 16px 32px; min-height: 112px; box-sizing: border-box; font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', sans-serif; } .ds-route-sign .ds-sign-side { flex: 1; } .ds-route-sign .ds-sign-label { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; } .ds-route-sign .ds-sign-name { font-size: 28px; font-weight: 700; line-height: 32px; } .ds-route-sign .ds-sign-detail { font-size: 15px; font-weight: 600; color: #4A4220; } .ds-route-sign .ds-sign-rule { width: 8px; align-self: stretch; background: #1E2124; margin-right: 16px; } .ds-route-sign svg { color: #1E2124; }"
+    },
+    {
+      "name": "Alert Route Sign",
+      "kind": "custom",
+      "refersTo": "route-sign-alert",
+      "description": "Same database on both sides: static alert red; all lettering, arrow and rule white.",
+      "html": "<div class=\"ds-route-sign-alert\"><div class=\"ds-sign-side\"><div class=\"ds-sign-label\">SOURCE · SAME DATABASE AS TARGET</div><div class=\"ds-sign-name\">Sales</div><div class=\"ds-sign-detail\">sql-prod-01.corp.local · SQL Server 2022</div></div><svg viewBox=\"0 0 16 16\" width=\"56\" height=\"56\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M1,6.5 H9.4 L5.6,2.7 H9.6 L14.9,8 L9.6,13.3 H5.6 L9.4,9.5 H1 Z\"/></svg><div class=\"ds-sign-rule\"></div><div class=\"ds-sign-side\"><div class=\"ds-sign-label\">TARGET · SAME DATABASE AS SOURCE</div><div class=\"ds-sign-name\">Sales</div><div class=\"ds-sign-detail\">sql-prod-01.corp.local · SQL Server 2022</div></div></div>",
+      "css": ".ds-route-sign-alert { display: flex; align-items: center; gap: 16px; background: #B3261E; color: #FFFFFF; border-bottom: 2px solid #1E2124; padding: 16px 32px; min-height: 112px; box-sizing: border-box; font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', sans-serif; } .ds-route-sign-alert .ds-sign-side { flex: 1; } .ds-route-sign-alert .ds-sign-label { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; } .ds-route-sign-alert .ds-sign-name { font-size: 28px; font-weight: 700; line-height: 32px; } .ds-route-sign-alert .ds-sign-detail { font-size: 15px; font-weight: 600; color: #FFFFFF; } .ds-route-sign-alert .ds-sign-rule { width: 8px; align-self: stretch; background: #FFFFFF; margin-right: 16px; } .ds-route-sign-alert svg { color: #FFFFFF; }"
+    },
+    {
+      "name": "Navigation Rail",
+      "kind": "nav",
+      "refersTo": "nav-rail",
+      "description": "Anthracite rail; selected item letters in sign yellow bold.",
+      "html": "<nav class=\"ds-rail\"><div class=\"ds-rail-brand\"><svg viewBox=\"0 0 64 64\" width=\"20\" height=\"20\" aria-hidden=\"true\"><path fill=\"#FFCC00\" d=\"M10,27 H32 L22,17 H33 L48,32 L33,47 H22 L32,37 H10 Z M51,14 H57 V50 H51 Z\"/></svg>DataBridge</div><a class=\"ds-rail-item\" href=\"#\">Connections</a><a class=\"ds-rail-item\" href=\"#\">New comparison</a><a class=\"ds-rail-item ds-selected\" href=\"#\" aria-current=\"page\">Schema comparison</a><a class=\"ds-rail-item\" href=\"#\">Synchronization preview</a></nav>",
+      "css": ".ds-rail { width: 200px; background: #1E2124; padding: 16px 0; font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', sans-serif; font-size: 13px; } .ds-rail-brand { display: flex; gap: 8px; align-items: center; color: #FFFFFF; font-weight: 700; font-size: 15px; padding: 0 16px 24px; } .ds-rail-item { display: block; min-height: 32px; box-sizing: border-box; padding: 8px 16px; color: #B9BDB8; text-decoration: none; } .ds-rail-item:hover { background: #2E3236; color: #FFFFFF; } .ds-rail-item.ds-selected { background: #2E3236; color: #FFCC00; font-weight: 700; } .ds-rail-item:focus-visible { outline: 2px solid #0067C0; outline-offset: 1px; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Fluent accent button in the OS accent (stand-in blue here); one per panel, bottom-right.",
+      "html": "<button class=\"ds-btn-primary\">Approve plan</button>",
+      "css": ".ds-btn-primary { font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', sans-serif; font-size: 13px; font-weight: 600; min-height: 32px; padding: 7px 16px; border-radius: 2px; border: 1px solid transparent; background: #0067C0; color: #FFFFFF; } .ds-btn-primary:hover { background: #1975C5; } .ds-btn-primary:active { background: #3183CA; } .ds-btn-primary:focus-visible { outline: 2px solid #0067C0; outline-offset: 3px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Stock Fluent button face, left of the primary.",
+      "html": "<button class=\"ds-btn\">Export script</button>",
+      "css": ".ds-btn { font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', sans-serif; font-size: 13px; font-weight: 600; min-height: 32px; padding: 7px 16px; border-radius: 2px; border: 1px solid transparent; background: #E5E7E2; color: #1E2124; } .ds-btn:hover { background: #EFF0EC; } .ds-btn:active { background: #CDD0C9; } .ds-btn:focus-visible { outline: 2px solid #0067C0; outline-offset: 3px; }"
+    },
+    {
+      "name": "Danger Callout with Opt-in",
+      "kind": "card",
+      "refersTo": "callout-danger",
+      "description": "2px full danger frame on danger surface; hosts the outlined destructive opt-in button.",
+      "html": "<div class=\"ds-callout-danger\" role=\"alert\"><div class=\"ds-callout-head\"><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#B3261E\" fill-rule=\"evenodd\" d=\"M8,2 A6,6 0 1 1 7.99,2 Z M4.5,7 H11.5 V9 H4.5 Z\"/></svg>1 destructive operation excluded</div><p>DROP TABLE [dbo].[LegacyInvoices] runs only if you opt in and approve this plan.</p><button class=\"ds-btn-danger\">Include destructive operations…</button></div>",
+      "css": ".ds-callout-danger { border: 2px solid #B3261E; background: #FBEAE8; padding: 12px; color: #1E2124; font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', sans-serif; font-size: 13px; } .ds-callout-head { display: flex; gap: 8px; align-items: center; font-weight: 700; } .ds-callout-danger p { margin: 4px 0 8px; } .ds-btn-danger { font-family: inherit; font-size: 13px; font-weight: 600; min-height: 32px; padding: 7px 16px; border-radius: 2px; border: 1px solid #B3261E; color: #B3261E; background: #E5E7E2; } .ds-btn-danger:hover { background: #FBEAE8; } .ds-btn-danger:active { background: #CDD0C9; } .ds-btn-danger:disabled { color: #5A605C; border-color: #DADDD6; background: transparent; } .ds-btn-danger:focus-visible { outline: 2px solid #0067C0; outline-offset: 3px; }"
+    },
+    {
+      "name": "Signals",
+      "kind": "chip",
+      "refersTo": "signal",
+      "description": "State = glyph shape + colour; label stays in text colour.",
+      "html": "<ul class=\"ds-signals\"><li><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#1F7A4D\" d=\"M7,3 H9 V7 H13 V9 H9 V13 H7 V9 H3 V7 H7 Z\"/></svg>Only in source</li><li><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#2B5FB4\" d=\"M8,2 L14,8 L8,14 L2,8 Z\"/></svg>Changed</li><li><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#B3261E\" d=\"M3,7 H13 V9 H3 Z\"/></svg>Only in target</li><li><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#1F7A4D\" d=\"M8,2 A6,6 0 1 1 7.99,2 Z\"/></svg>Target fingerprint matches</li><li><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#565C58\" fill-rule=\"evenodd\" d=\"M8,2 A6,6 0 1 1 7.99,2 Z M8,4.75 A3.25,3.25 0 1 0 8.01,4.75 Z\"/></svg>Queued</li><li><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#A34A00\" d=\"M3,3 H13 V13 H3 Z\"/></svg>Awaiting approval</li><li><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#B3261E\" fill-rule=\"evenodd\" d=\"M8,2 A6,6 0 1 1 7.99,2 Z M4.5,7 H11.5 V9 H4.5 Z\"/></svg>Blocked</li><li><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#5A605C\" fill-rule=\"evenodd\" d=\"M3,3 H13 V13 H3 Z M5,5 V11 H11 V5 Z\"/></svg>Excluded</li><li><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#A34A00\" fill-rule=\"evenodd\" d=\"M8,1.5 L15,14 H1 Z M7.2,6 H8.8 V10 H7.2 Z M7.2,11 H8.8 V12.6 H7.2 Z\"/></svg>Unsupported</li></ul>",
+      "css": ".ds-signals { list-style: none; margin: 0; padding: 0; font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', sans-serif; font-size: 13px; color: #1E2124; display: grid; gap: 8px; } .ds-signals li { display: flex; align-items: center; gap: 8px; }"
+    },
+    {
+      "name": "Two-line Comparison Grid",
+      "kind": "custom",
+      "refersTo": "data-grid-row-two-line",
+      "description": "48px rows: object name plus muted detail; star column; pale accent-tint selection, no stripe.",
+      "html": "<table class=\"ds-grid\"><thead><tr><th class=\"ds-star\">OBJECT · DETAIL</th><th>TYPE</th><th>DIFFERENCE</th></tr></thead><tbody><tr class=\"ds-sel\" tabindex=\"0\"><td><div>dbo.Orders</div><div class=\"ds-sec\">ShippedAtUtc datetime2(3) → datetime2(7)</div></td><td>Table</td><td><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#2B5FB4\" d=\"M8,2 L14,8 L8,14 L2,8 Z\"/></svg> Changed</td></tr><tr tabindex=\"0\"><td><div>sales.Promotions</div><div class=\"ds-sec\">6 columns · PK PromotionId</div></td><td>Table</td><td><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#1F7A4D\" d=\"M7,3 H9 V7 H13 V9 H9 V13 H7 V9 H3 V7 H7 Z\"/></svg> Only in source</td></tr><tr tabindex=\"0\"><td><div>dbo.LegacyInvoices</div><div class=\"ds-sec\">Drop is off by default</div></td><td>Table</td><td><svg viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path fill=\"#B3261E\" d=\"M3,7 H13 V9 H3 Z\"/></svg> Only in target</td></tr></tbody></table>",
+      "css": ".ds-grid { border-collapse: collapse; width: 100%; background: #FFFFFF; font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', sans-serif; font-size: 13px; color: #1E2124; font-variant-numeric: tabular-nums; border: 1px solid #DADDD6; } .ds-grid th { font-size: 12px; font-weight: 700; color: #565C58; text-align: left; height: 32px; padding: 0 4px 0 12px; border-bottom: 1px solid #DADDD6; white-space: nowrap; } .ds-grid .ds-star { width: 100%; } .ds-grid td { height: 48px; padding: 0 12px; border-bottom: 1px solid #DADDD6; white-space: nowrap; } .ds-grid .ds-sec { font-size: 12px; color: #565C58; overflow: hidden; text-overflow: ellipsis; } .ds-grid tr.ds-sel td { background: rgba(0,103,192,0.16); } .ds-grid tr.ds-sel:hover td { background: rgba(0,103,192,0.24); } .ds-grid tr:focus-visible { outline: 2px solid #0067C0; outline-offset: -2px; } .ds-grid svg { vertical-align: -1px; margin-right: 4px; }"
+    },
+    {
+      "name": "SQL Code Panel",
+      "kind": "card",
+      "refersTo": "code-block",
+      "description": "Panel named by a label, sunken mono well; never soft-wraps, scrolls horizontally.",
+      "html": "<section class=\"ds-panel\"><div class=\"ds-label\">SQL · STEP 2 OF 23</div><pre class=\"ds-code\">-- Widen precision; nullability preserved\nALTER TABLE [dbo].[Orders]\n    ALTER COLUMN [ShippedAtUtc] datetime2(7) NULL;</pre></section>",
+      "css": ".ds-panel { background: #FFFFFF; border: 1px solid #DADDD6; padding: 16px; font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', sans-serif; } .ds-label { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; color: #565C58; margin-bottom: 8px; } .ds-code { margin: 0; background: #EDEEEA; padding: 12px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 12px; line-height: 19px; color: #1E2124; white-space: pre; overflow-x: auto; } .ds-code::selection { background: #0067C0; color: #FFFFFF; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Wayfinding Signage",
+    "overview": "DataBridge reads like airport signage. The first thing on every screen is a full-width sign-yellow route sign: where the data comes from on the left, a heavy signage arrow, a heavy rule, and where it goes on the right, set at display size in anthracite lettering. The user reads the sign first, then scans what differs, then reviews plan and SQL, and approves knowing exactly which database will change. The world rejects the neutral grey tree-grid-SQL tool in which source and target identity shrink to a pair of combo boxes.\n\nEverything below the sign is quiet: a light drafting-grey (or anthracite, at night) ground, flat white panels drawn with hairlines, dense virtualized grids, and stock Fluent controls re-tinted from the tokens so the controls stay the ones users already know. State speaks in signage colours, green, blue, orange, red, grey, and every state also carries its own glyph shape. Focus, selection and primary buttons follow the operating system's accent colour; sign yellow never does that work.\n\nThe system is an Avalonia 12 theme (`src/DataBridge.Desktop/Themes/`): Tokens, Icons, Controls and the DataBridgeTheme entry point. Light and dark follow the OS. The sign itself does not invert.",
+    "keyCharacteristics": [
+      "One signature element, the route sign, in sign yellow (or alert red) identical in both themes.",
+      "Sign yellow is reserved for identity and direction; the OS accent carries interaction.",
+      "Flat hairline panels; only overlays lift.",
+      "Dense: 32px rows, 13px body, an 8px armature.",
+      "State is always colour plus a distinct glyph shape.",
+      "Atkinson Hyperlegible Next for everything; JetBrains Mono only for SQL, identifiers and measured values."
+    ],
+    "rules": [
+      {
+        "name": "The Reserved Yellow Rule",
+        "body": "Sign yellow means identity and direction only: route sign, selected nav item, app mark. Never state, never emphasis, never a highlight, never a button.",
+        "section": "colors"
+      },
+      {
+        "name": "The Signage Does Not Invert Rule",
+        "body": "The route sign, alert sign and app mark are the same colours in light and dark. Only the ground around them changes.",
+        "section": "colors"
+      },
+      {
+        "name": "The OS Accent Rule",
+        "body": "Focus, selection and primary buttons use the operating system accent through FluentTheme. The theme deliberately sets no accent.",
+        "section": "colors"
+      },
+      {
+        "name": "The AA Floor Rule",
+        "body": "Every text and state token clears 4.5:1 on ground, panel and sunken in its theme (lowest measured: light add on sunken 4.56:1; dark danger on danger surface 5.01:1). Sign lettering is 10.7:1 on yellow; white on alert red is 6.5:1. New tokens must hold the same floor in both themes.",
+        "section": "colors"
+      },
+      {
+        "name": "The Five Steps Rule",
+        "body": "The scale is 12 / 13 / 15 / 20 / 28. Nothing is set between steps.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "Grids and numeric text use tabular figures (`tnum`) so counts align in columns.",
+        "section": "typography"
+      },
+      {
+        "name": "The Machine Text Rule",
+        "body": "Monospace only for SQL, identifiers and measured values. SQL never soft-wraps: a wrapped line at column 0 reads as a new statement. Host code in a horizontal scroll viewer.",
+        "section": "typography"
+      },
+      {
+        "name": "The Single Rank Rule",
+        "body": "There is one elevation rank above the page: overlays. Panels never cast shadows.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Instant State Rule",
+        "body": "Hover, selection and state changes apply immediately, without easing.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do put the route sign at the top of every screen that names a source and a target, source left, target right, at 28px Bold.",
+      "Do switch to `route-sign.alert` when both sides resolve to the same database.",
+      "Do pair every state colour with its glyph shape; pick the colour by what a sync would do to the target.",
+      "Do place the primary action bottom-right of its panel, rightmost in a right-aligned row.",
+      "Do keep destructive opt-in buttons outlined, inside the danger callout they relate to.",
+      "Do use 32px grid rows, and 48px two-line rows with a muted detail line for comparison results.",
+      "Do give truncated grid cells an ellipsis and a tooltip, and size every column to its header plus sort-icon space.",
+      "Do host SQL in a horizontal scroll viewer with wrapping off.",
+      "Do keep every new text or state token at 4.5:1 or better on ground, panel and sunken in both themes.",
+      "Do include the theme from App.axaml via `avares://DataBridge.Desktop/Themes/DataBridgeTheme.axaml` with `RequestedThemeVariant=\"Default\"`; reference Avalonia.Themes.Fluent and Avalonia.Controls.DataGrid; ship Themes and Assets/Fonts as AvaloniaResource in DataBridge.Desktop."
+    ],
+    "donts": [
+      "Don't use sign yellow for state, emphasis, highlights, buttons or focus.",
+      "Don't invert the sign, the alert sign or the app mark for dark mode.",
+      "Don't convey state by colour alone.",
+      "Don't fill a destructive button red or put it in the primary slot.",
+      "Don't add shadows to panels, or transitions to state changes.",
+      "Don't set type between the five steps, or use monospace for prose and labels.",
+      "Don't soft-wrap SQL.",
+      "Don't mark grid selection with an edge stripe or a saturated fill, or a callout with a side stripe.",
+      "Don't set a fixed accent colour; the OS accent drives interaction.",
+      "Don't place a tracked-caps label above a page heading as an eyebrow."
+    ]
+  }
+}

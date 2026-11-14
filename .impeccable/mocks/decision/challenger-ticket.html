@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>DataBridge · Ticket Wallet</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font:13px/1.45 "Atkinson Hyperlegible Next",sans-serif;background:#E9ECF2;color:#1C2F5E;display:grid;grid-template-columns:200px 1fr}
+nav{background:#1C2F5E;color:#C5CDE0;padding:16px 0}nav b{display:block;color:#fff;font-size:15px;padding:0 16px 24px}
+nav a{display:block;padding:8px 16px}nav a.on{background:#C8102E;color:#fff}
+main{padding:24px 32px;display:grid;grid-template-rows:auto 1fr;gap:16px}
+header{display:flex;gap:32px;align-items:baseline;border-bottom:2px solid #1C2F5E;padding-bottom:12px}
+header strong{font-size:28px;font-weight:800}header span{font-weight:600}
+.book{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-content:start}
+.cp{background:#fff;border:1px solid #B8C1D6;border-left:6px solid #1C2F5E;padding:12px 16px;position:relative;min-height:120px}
+.cp small{font-size:11px;font-weight:700;letter-spacing:.1em;color:#5A6787}
+.cp b{display:block;font-size:15px;margin:4px 0}
+.cp code{font:12px "JetBrains Mono",monospace;color:#5B3E8A}
+.stamp{position:absolute;right:12px;top:12px;border:2px solid;padding:2px 8px;font-weight:800;font-size:12px;letter-spacing:.1em;transform:rotate(-6deg)}
+.used{color:#1F7A4D}.void{color:#C8102E}.pend{color:#5A6787;transform:none}
+.cp.dim{opacity:.55;border-left-color:#C8102E}
+</style></head><body>
+<nav><b>DataBridge</b><a>Dashboard</a><a>Connections</a><a>Schema comparison</a><a>Data comparison</a><a>Synchronization</a><a class="on">Execution</a><a>History</a></nav>
+<main>
+<header><strong>Sales → Sales_QA</strong><span>Plan 7f3a · approved 14:20 UTC</span><span>9 of 23 used · 1 void · 13 remaining</span></header>
+<div class="book">
+ <div class="cp"><small>COUPON 01 · SCHEMA</small><b>CREATE TABLE sales.Promotions</b><code>6 columns · PK PromotionId</code><span class="stamp used">USED</span></div>
+ <div class="cp"><small>COUPON 02 · SCHEMA</small><b>ALTER dbo.Orders.ShippedAtUtc</b><code>datetime2(3) → datetime2(7)</code><span class="stamp used">USED</span></div>
+ <div class="cp"><small>COUPON 03 · SCHEMA</small><b>CREATE INDEX IX_Orders_Customer</b><code>(CustomerId, CreatedAtUtc DESC)</code><span class="stamp used">USED</span></div>
+ <div class="cp dim"><small>COUPON 04 · DESTRUCTIVE</small><b>DROP TABLE dbo.LegacyInvoices</b><code>not opted in</code><span class="stamp void">VOID</span></div>
+ <div class="cp"><small>COUPON 05 · DATA</small><b>INSERT dbo.Customers</b><code>1,240 rows · batch 500</code><span class="stamp pend">IN PROGRESS</span></div>
+ <div class="cp"><small>COUPON 06 · DATA</small><b>UPDATE dbo.Orders</b><code>3,118 rows</code><span class="stamp pend">PENDING</span></div>
+</div></main></body></html>
