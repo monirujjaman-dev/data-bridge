@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DataBridge.Application/DataBridge.Application.csproj" />
+  </ItemGroup>
+
+</Project>

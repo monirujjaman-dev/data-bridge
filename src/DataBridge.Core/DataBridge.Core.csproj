@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Provider-independent domain. Must stay free of UI, database driver, DacFx and SQLite dependencies. -->
+  <PropertyGroup>
+    <RootNamespace>DataBridge.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../DataBridge.Shared/DataBridge.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

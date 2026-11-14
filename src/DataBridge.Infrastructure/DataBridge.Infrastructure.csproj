@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- SQL Server provider, local persistence and credential-store adapters. -->
+  <PropertyGroup>
+    <RootNamespace>DataBridge.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../DataBridge.Application/DataBridge.Application.csproj" />
+    <ProjectReference Include="../DataBridge.Core/DataBridge.Core.csproj" />
+    <ProjectReference Include="../DataBridge.Shared/DataBridge.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

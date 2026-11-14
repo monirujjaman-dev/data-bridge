@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Avalonia application and composition root. Contains no SQL or comparison algorithms. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>DataBridge.Desktop</RootNamespace>
+    <AssemblyName>DataBridge.Desktop</AssemblyName>
+    <ApplicationIcon>Assets/Brand/Icons/databridge.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../DataBridge.Application/DataBridge.Application.csproj" />
+    <ProjectReference Include="../DataBridge.Infrastructure/DataBridge.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

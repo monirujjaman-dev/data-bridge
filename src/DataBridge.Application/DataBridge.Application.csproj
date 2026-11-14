@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Use cases, orchestration and the ports implemented by Infrastructure. -->
+  <PropertyGroup>
+    <RootNamespace>DataBridge.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../DataBridge.Core/DataBridge.Core.csproj" />
+    <ProjectReference Include="../DataBridge.Shared/DataBridge.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

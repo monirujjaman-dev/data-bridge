@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DataBridge.Shared/DataBridge.Shared.csproj" />
+    <ProjectReference Include="../../src/DataBridge.Core/DataBridge.Core.csproj" />
+    <ProjectReference Include="../../src/DataBridge.Application/DataBridge.Application.csproj" />
+    <ProjectReference Include="../../src/DataBridge.Infrastructure/DataBridge.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
