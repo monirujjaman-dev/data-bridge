@@ -10,7 +10,8 @@ and migrations, OS credential stores, redacting logging, and the
 Desktop shell (Generic Host, DI, MVVM, navigation rail, Connections
 screen) styled by the visual design system (`PRODUCT.md`, `DESIGN.md`,
 `src/DataBridge.Desktop/Themes/`, `src/DataBridge.Desktop/Assets/`).
-Phase 2 (SQL Server connectivity) is next. Read these before
+Phase 2 (SQL Server connectivity) is in progress: SQL Server 2017+
+only, Azure SQL and Entra ID deferred (ADR-0010). Read these before
 implementing; they are the source of truth:
 
 -   `docs/requirements.md`: product scope, user journeys, acceptance
@@ -60,8 +61,9 @@ the project gets its first test.
 
 `DataBridge.ArchitectureTests` enforces the dependency rules below;
 update `DependencyRules.cs` when you add a source project.
-`DataBridge.IntegrationTests` needs a disposable SQL Server instance
-(the fixture is a Phase 2 task).
+`DataBridge.IntegrationTests` runs against a throwaway SQL Server 2022
+container (ADR-0011): it needs Docker, skips without it, and fails
+instead when `DATABRIDGE_REQUIRE_SQL_SERVER=true` (set on Linux CI).
 
 ## Big-picture architecture
 

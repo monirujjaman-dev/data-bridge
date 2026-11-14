@@ -25,6 +25,7 @@
 
   <!-- Infrastructure -->
   <ItemGroup>
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.2" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.15" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.15" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
@@ -37,6 +38,7 @@
   <ItemGroup>
     <PackageVersion Include="xunit.v3" Version="4.0.3" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.16.0" />
   </ItemGroup>
 
 </Project>

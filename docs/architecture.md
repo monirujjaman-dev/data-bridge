@@ -449,7 +449,7 @@ Each of these is recorded as an ADR (0001--0008) in `docs/adr/`; see
 | Key ordering strategy | Phase 4 | Baseline in §8; confirm with integration tests under CI/AS collations. |
 | Transaction granularity | Phase 6 | Per operation, per batch or per plan; user-configurable within the limits SQL Server can guarantee. |
 | DacFx adoption | Phase 3 | Depends on cross-platform evaluation. |
-| SQL Server test fixture | Phase 2 | SQL Server container images are x64 only; ARM developer machines need emulation or a remote instance. |
+| ~~SQL Server test fixture~~ | Phase 2 | Decided in ADR-0011: disposable SQL Server 2022 containers (Testcontainers); x64 only, so ARM machines use emulation or a remote instance. |
 
 ## 17. Revision history
 

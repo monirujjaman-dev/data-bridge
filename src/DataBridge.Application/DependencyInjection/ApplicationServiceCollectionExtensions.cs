@@ -22,6 +22,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<UpdateConnectionProfile>();
         services.AddTransient<RenameConnectionProfile>();
         services.AddTransient<DeleteConnectionProfile>();
+        services.AddTransient<TestConnection>();
 
         return services;
     }

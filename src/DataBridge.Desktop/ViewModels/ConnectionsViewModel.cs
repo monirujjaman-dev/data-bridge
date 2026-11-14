@@ -30,6 +30,7 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
     private readonly CreateConnectionProfile _create;
     private readonly UpdateConnectionProfile _update;
     private readonly DeleteConnectionProfile _delete;
+    private readonly TestConnection _test;
     private readonly SessionSecretCache _sessionSecrets;
     private readonly ILogger<ConnectionsViewModel> _logger;
 
@@ -38,6 +39,7 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
         CreateConnectionProfile create,
         UpdateConnectionProfile update,
         DeleteConnectionProfile delete,
+        TestConnection test,
         SessionSecretCache sessionSecrets,
         ILogger<ConnectionsViewModel> logger)
     {
@@ -45,9 +47,19 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
         _create = create;
         _update = update;
         _delete = delete;
+        _test = test;
         _sessionSecrets = sessionSecrets;
         _logger = logger;
         Editor.StartNew();
+
+        // A test result describes the fields as they were tested; any edit makes it stale.
+        Editor.PropertyChanged += (_, eventArgs) =>
+        {
+            if (!IsBusy && eventArgs.PropertyName is { } name && !name.EndsWith("Error", StringComparison.Ordinal))
+            {
+                ClearTestResult();
+            }
+        };
     }
 
     public ObservableCollection<ConnectionProfileItem> Profiles { get; } = [];
@@ -58,7 +70,7 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
     public partial ConnectionProfileItem? SelectedProfile { get; set; }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(NewProfileCommand), nameof(RequestDeleteCommand), nameof(ConfirmDeleteCommand), nameof(LoadCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(NewProfileCommand), nameof(RequestDeleteCommand), nameof(ConfirmDeleteCommand), nameof(LoadCommand), nameof(TestConnectionCommand))]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     public partial bool IsBusy { get; private set; }
 
@@ -80,6 +92,18 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(RequestDeleteCommand))]
     public partial bool IsConfirmingDelete { get; private set; }
+
+    /// <summary>What the server reported in the last successful connection test (FR-CON-008).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTestResult))]
+    public partial ResolvedDatabaseIdentity? TestedIdentity { get; private set; }
+
+    /// <summary>Why the last connection test failed, in words the user can act on.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTestResult))]
+    public partial string? TestError { get; private set; }
+
+    public bool HasTestResult => TestedIdentity is not null || TestError is not null;
 
     public bool IsIdle => !IsBusy;
 
@@ -131,6 +155,35 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
             StatusText = $"Saved {saved.Profile.Name}.";
         }, cancellationToken);
 
+    /// <summary>Connects with the profile as entered, saved or not, and shows what the server reports. Saves nothing.</summary>
+    [RelayCommand(CanExecute = nameof(IsIdle), IncludeCancelCommand = true)]
+    private Task TestConnectionAsync(CancellationToken cancellationToken) =>
+        RunAsync("test the connection", "Connecting…", async token =>
+        {
+            ClearTestResult();
+            Editor.ClearErrors();
+            var input = Editor.ToInput();
+            var profileId = Editor.ProfileId;
+            var result = await RunInBackgroundAsync(innerToken => _test.ExecuteAsync(profileId, input, innerToken), token);
+            if (result.IsSuccess)
+            {
+                TestedIdentity = result.Value;
+                StatusText = $"Connected to {result.Value.DatabaseName} on {result.Value.ServerName}.";
+                return;
+            }
+
+            if (result.Errors.All(error => error.Code.StartsWith("Connection.", StringComparison.Ordinal)))
+            {
+                TestError = string.Join(" ", result.Errors.Select(error => error.Message));
+            }
+            else
+            {
+                Editor.ShowErrors(result.Errors);
+            }
+
+            StatusText = "The connection test failed.";
+        }, cancellationToken);
+
     [RelayCommand(CanExecute = nameof(CanRequestDelete))]
     private void RequestDelete()
     {
@@ -146,6 +199,7 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
     private void CancelBusy()
     {
         LoadCommand.Cancel();
+        TestConnectionCommand.Cancel();
         SaveCommand.Cancel();
         ConfirmDeleteCommand.Cancel();
     }
@@ -239,6 +293,13 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
         Notice = null;
         ErrorMessage = null;
         Editor.ClearErrors();
+        ClearTestResult();
+    }
+
+    private void ClearTestResult()
+    {
+        TestedIdentity = null;
+        TestError = null;
     }
 
     /// <summary>Runs one operation with busy state, status text, cancellation and error reporting.</summary>

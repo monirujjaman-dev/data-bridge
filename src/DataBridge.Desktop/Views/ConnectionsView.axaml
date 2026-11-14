@@ -82,6 +82,9 @@
                       IsVisible="{Binding !Editor.IsNew}" />
               <Button DockPanel.Dock="Right" Classes="accent" Content="Save profile" Command="{Binding SaveCommand}"
                       IsDefault="True" ToolTip.Tip="Save (Enter)" />
+              <Button DockPanel.Dock="Right" Margin="0,0,8,0" Content="Test connection"
+                      Command="{Binding TestConnectionCommand}" HotKey="Ctrl+T"
+                      ToolTip.Tip="Connect with these settings and show what the server reports (Ctrl+T). Nothing is saved." />
               <Panel />
             </DockPanel>
           </Border>
@@ -96,6 +99,33 @@
             <StackPanel Margin="16" Spacing="16">
 
               <TextBlock Classes="title" Text="{Binding Editor.Title}" TextTrimming="CharacterEllipsis" />
+
+              <!-- Connection test: what the server reports about itself (FR-CON-008), or why it failed. -->
+              <Border Classes="sunken" IsVisible="{Binding TestedIdentity, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <StackPanel Spacing="8">
+                  <ContentControl Classes="signal cleared">
+                    <TextBlock FontWeight="Bold" Text="Connected. The server reports:" />
+                  </ContentControl>
+                  <Grid ColumnDefinitions="Auto,16,*" RowDefinitions="Auto,4,Auto,4,Auto,4,Auto">
+                    <TextBlock Classes="label" Grid.Row="0" Text="SERVER" VerticalAlignment="Center" />
+                    <SelectableTextBlock Classes="code" Grid.Row="0" Grid.Column="2" Text="{Binding TestedIdentity.ServerName}" TextWrapping="Wrap" />
+                    <TextBlock Classes="label" Grid.Row="2" Text="DATABASE" VerticalAlignment="Center" />
+                    <SelectableTextBlock Classes="code" Grid.Row="2" Grid.Column="2" Text="{Binding TestedIdentity.DatabaseName}" TextWrapping="Wrap" />
+                    <TextBlock Classes="label" Grid.Row="4" Text="VERSION" VerticalAlignment="Center" />
+                    <SelectableTextBlock Grid.Row="4" Grid.Column="2" Text="{Binding TestedIdentity.ServerVersion}" TextWrapping="Wrap" />
+                    <TextBlock Classes="label" Grid.Row="6" Text="COLLATION" VerticalAlignment="Center" />
+                    <SelectableTextBlock Classes="code" Grid.Row="6" Grid.Column="2" Text="{Binding TestedIdentity.DatabaseCollation}" TextWrapping="Wrap" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+              <Border Classes="callout danger" IsVisible="{Binding TestError, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <StackPanel Spacing="4">
+                  <ContentControl Classes="signal blocked">
+                    <TextBlock FontWeight="Bold" Text="The connection test failed" />
+                  </ContentControl>
+                  <TextBlock Text="{Binding TestError}" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
 
               <!-- Unexpected failure -->
               <Border Classes="callout danger" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}">

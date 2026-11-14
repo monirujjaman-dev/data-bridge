@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
@@ -19,6 +20,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="DataBridge.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="DataBridge.IntegrationTests" />
   </ItemGroup>
 
   <ItemGroup>

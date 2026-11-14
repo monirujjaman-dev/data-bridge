@@ -67,8 +67,16 @@ The credential-store tests save and delete throwaway entries (prefixed
 when no store is available, unless `DATABRIDGE_REQUIRE_CREDENTIAL_STORE`
 is `true`, as in CI.
 
-Integration tests will need a disposable SQL Server instance once they
-exist (Phase 2). Never point them at a database you care about.
+The SQL Server integration tests (`tests/DataBridge.IntegrationTests`)
+start a throwaway SQL Server 2022 container with Testcontainers
+(ADR-0011), so they need Docker with Linux containers; the first run
+pulls an image of about 1.5 GB. Without Docker those tests are skipped,
+unless `DATABRIDGE_REQUIRE_SQL_SERVER` is `true`, as on the Linux CI
+job. Set `DATABRIDGE_SQL_SERVER_IMAGE` to test another supported
+version, for example `mcr.microsoft.com/mssql/server:2019-latest`.
+The images are x64 only: on ARM machines use Docker Desktop with x64
+emulation (Rosetta on Apple silicon) or rely on CI. Never point the
+tests at a database you care about.
 
 ## Repository layout
 

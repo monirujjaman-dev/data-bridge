@@ -75,6 +75,8 @@ jobs:
         if: runner.os == 'Linux'
         env:
           DATABRIDGE_REQUIRE_CREDENTIAL_STORE: "true"
+          # Linux runners have Docker, so the SQL Server integration tests must run there (ADR-0011).
+          DATABRIDGE_REQUIRE_SQL_SERVER: "true"
         run: |
           dbus-run-session -- bash -c '
             printf "databridge-ci" | gnome-keyring-daemon --unlock --components=secrets > /dev/null
