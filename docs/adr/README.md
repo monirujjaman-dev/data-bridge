@@ -20,6 +20,7 @@ Records 0001--0008 record the baseline decisions in
 | [0011](0011-sql-server-integration-test-fixture.md) | Disposable SQL Server containers for integration tests | Accepted |
 | [0012](0012-schema-comparison-object-scope.md) | Schema comparison object scope in v1 | Accepted |
 | [0013](0013-dacfx-not-adopted-for-schema-reading.md) | DacFx is not adopted for schema reading and comparison | Accepted |
+| [0014](0014-key-ordering-and-row-streaming.md) | Key ordering and row streaming for data comparison | Accepted |
 
 ## Writing a new record
 
