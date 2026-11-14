@@ -22,13 +22,16 @@ public sealed class SchemaComparerTests
         Trigger("Orders_Audit", "Orders", "CREATE TRIGGER dbo.Orders_Audit ON dbo.Orders AFTER INSERT AS SELECT 1"),
         Sequence("OrderNumbers")));
 
+    private static SchemaComparisonResult Run(DatabaseSchema source, DatabaseSchema target, SchemaComparer? comparer = null) =>
+        (comparer ?? _comparer).Compare(source, target, TestContext.Current.CancellationToken);
+
     private static SchemaObjectDifference Find(SchemaComparisonResult result, DatabaseObjectType type, string name) =>
         Assert.Single(result.Differences, difference => difference.ObjectId.ObjectType == type && difference.ObjectId.ObjectName == name);
 
     [Fact]
     public void Identical_schemas_have_no_differences()
     {
-        var result = _comparer.Compare(Full(), Full());
+        var result = Run(Full(), Full());
 
         Assert.False(result.HasDifferences);
         Assert.All(result.Differences, difference => Assert.Equal(DifferenceStatus.Equal, difference.Status));
@@ -42,7 +45,7 @@ public sealed class SchemaComparerTests
         var source = Database(InSchema("dbo", Table("A", Column("Id"))), InSchema("sales"));
         var target = Database(InSchema("dbo", Table("B", Column("Id"))), InSchema("hr"));
 
-        var result = _comparer.Compare(source, target);
+        var result = Run(source, target);
 
         Assert.Equal(DifferenceStatus.SourceOnly, Find(result, DatabaseObjectType.Table, "A").Status);
         Assert.Equal(DifferenceStatus.TargetOnly, Find(result, DatabaseObjectType.Table, "B").Status);
@@ -57,7 +60,7 @@ public sealed class SchemaComparerTests
         var source = Database(InSchema("dbo", Table("T", Column("Id"), Text("Name", 50, nullable: true))));
         var target = Database(InSchema("dbo", Table("T", Column("Id"), Text("Name", 100, nullable: false, collation: "Latin1_General_CS_AS"))));
 
-        var result = _comparer.Compare(source, target);
+        var result = Run(source, target);
 
         Assert.Equal(DifferenceStatus.Modified, Find(result, DatabaseObjectType.Table, "T").Status);
         Assert.Equal(DifferenceStatus.Equal, Find(result, DatabaseObjectType.Column, "Id").Status);
@@ -75,7 +78,7 @@ public sealed class SchemaComparerTests
         var source = Database(InSchema("dbo", Table("T", Column("A") with { Identity = new(1, 1) }, Column("B") with { Computed = new("([A]*(2))", false) })));
         var target = Database(InSchema("dbo", Table("T", Column("B") with { Computed = new("([A]*(3))", false) }, Column("A") with { Identity = new(1000, 1) })));
 
-        var result = _comparer.Compare(source, target);
+        var result = Run(source, target);
 
         var a = Find(result, DatabaseObjectType.Column, "A");
         Assert.Contains(new PropertyDifference("Identity", "IDENTITY(1, 1)", "IDENTITY(1000, 1)"), a.Properties);
@@ -89,9 +92,9 @@ public sealed class SchemaComparerTests
         var source = Database(InSchema("dbo", Table("Orders", Column("Id"))));
         var target = Database(InSchema("dbo", Table("ORDERS", Column("ID"))));
 
-        Assert.False(_comparer.Compare(source, target).HasDifferences);
+        Assert.False(Run(source, target).HasDifferences);
 
-        var caseSensitive = _comparer.Compare(source, target with { IdentifiersAreCaseSensitive = true });
+        var caseSensitive = Run(source, target with { IdentifiersAreCaseSensitive = true });
         Assert.Equal(DifferenceStatus.SourceOnly, Find(caseSensitive, DatabaseObjectType.Table, "Orders").Status);
         Assert.Equal(DifferenceStatus.TargetOnly, Find(caseSensitive, DatabaseObjectType.Table, "ORDERS").Status);
     }
@@ -102,7 +105,7 @@ public sealed class SchemaComparerTests
         var source = Database(InSchema("dbo", View("Thing", "CREATE VIEW dbo.Thing AS SELECT 1 AS A")));
         var target = Database(InSchema("dbo", Table("Thing", Column("A"))));
 
-        var difference = Assert.Single(_comparer.Compare(source, target).Differences, item => item.ObjectId.ObjectName == "Thing");
+        var difference = Assert.Single(Run(source, target).Differences, item => item.ObjectId.ObjectName == "Thing");
 
         Assert.Equal(DifferenceStatus.Incompatible, difference.Status);
         Assert.Equal("The source object is a view and the target object is a table.", difference.Reason);
@@ -114,7 +117,7 @@ public sealed class SchemaComparerTests
         var source = Database(InSchema("dbo", Trigger("Audit", "Orders", "CREATE TRIGGER dbo.Audit ON dbo.Orders AFTER INSERT AS SELECT 1")));
         var target = Database(InSchema("dbo", Trigger("Audit", "Customers", "CREATE TRIGGER dbo.Audit ON dbo.Customers AFTER INSERT AS SELECT 1")));
 
-        Assert.Equal(DifferenceStatus.Incompatible, Find(_comparer.Compare(source, target), DatabaseObjectType.Trigger, "Audit").Status);
+        Assert.Equal(DifferenceStatus.Incompatible, Find(Run(source, target), DatabaseObjectType.Trigger, "Audit").Status);
     }
 
     [Fact]
@@ -127,7 +130,7 @@ public sealed class SchemaComparerTests
             DefaultConstraints = [new($"DF__T__Qty__{suffix}", true, "Qty", "((1))")],
         };
 
-        var result = _comparer.Compare(Database(InSchema("dbo", WithConstraints("1A2B"))), Database(InSchema("dbo", WithConstraints("9F8E"))));
+        var result = Run(Database(InSchema("dbo", WithConstraints("1A2B"))), Database(InSchema("dbo", WithConstraints("9F8E"))));
 
         Assert.False(result.HasDifferences);
         Assert.Equal("PK__T__1A2B", Find(result, DatabaseObjectType.PrimaryKey, "PK__T__1A2B").ObjectId.ObjectName);
@@ -139,7 +142,7 @@ public sealed class SchemaComparerTests
         static TableDefinition WithCheck(string name, string expression) =>
             Table("T", Column("Qty")) with { CheckConstraints = [new(name, true, expression, false, false)] };
 
-        var result = _comparer.Compare(
+        var result = Run(
             Database(InSchema("dbo", WithCheck("CK__T__1", "([Qty]>(0))"))),
             Database(InSchema("dbo", WithCheck("CK__T__2", "([Qty]>=(0))"))));
 
@@ -153,7 +156,7 @@ public sealed class SchemaComparerTests
         var source = Database(InSchema("dbo", Table("T", Column("A"), Column("B")) with { PrimaryKey = PrimaryKey("PK_T", false, "A", "B") }));
         var target = Database(InSchema("dbo", Table("T", Column("A"), Column("B")) with { PrimaryKey = PrimaryKey("PK_T_New", false, "B", "A") }));
 
-        var key = Find(_comparer.Compare(source, target), DatabaseObjectType.PrimaryKey, "PK_T");
+        var key = Find(Run(source, target), DatabaseObjectType.PrimaryKey, "PK_T");
 
         Assert.Equal(DifferenceStatus.Modified, key.Status);
         Assert.Contains(new PropertyDifference("Name", "PK_T", "PK_T_New"), key.Properties);
@@ -166,7 +169,7 @@ public sealed class SchemaComparerTests
         var source = Database(InSchema("dbo", Table("T", Column("A")) with { PrimaryKey = PrimaryKey("PK_T", false, "A") }));
         var target = Database(InSchema("dbo", Table("T", Column("A"))));
 
-        var result = _comparer.Compare(source, target);
+        var result = Run(source, target);
 
         Assert.Equal(DifferenceStatus.SourceOnly, Find(result, DatabaseObjectType.PrimaryKey, "PK_T").Status);
         Assert.Equal(DifferenceStatus.Modified, Find(result, DatabaseObjectType.Table, "T").Status);
@@ -178,13 +181,13 @@ public sealed class SchemaComparerTests
         static DatabaseSchema WithIndex(params IndexColumnDefinition[] columns) =>
             Database(InSchema("dbo", Table("T", Column("A"), Column("B"), Column("C")) with { Indexes = [Index("IX", columns)] }));
 
-        var reordered = _comparer.Compare(
+        var reordered = Run(
             WithIndex(Key("A", 1), Include("B"), Include("C")),
             WithIndex(Key("A", 1), Include("C"), Include("B")));
         Assert.False(reordered.HasDifferences);
 
         var descending = Find(
-            _comparer.Compare(WithIndex(Key("A", 1)), WithIndex(Key("A", 1, descending: true))),
+            Run(WithIndex(Key("A", 1)), WithIndex(Key("A", 1, descending: true))),
             DatabaseObjectType.Index,
             "IX");
         Assert.Equal([new("KeyColumns", "A ASC", "A DESC")], descending.Properties);
@@ -202,7 +205,7 @@ public sealed class SchemaComparerTests
         };
 
         var index = Find(
-            _comparer.Compare(
+            Run(
                 Database(InSchema("dbo", Table("T", Column("A")) with { Indexes = [sourceIndex] })),
                 Database(InSchema("dbo", Table("T", Column("A")) with { Indexes = [targetIndex] }))),
             DatabaseObjectType.Index,
@@ -222,7 +225,7 @@ public sealed class SchemaComparerTests
             }));
 
         var foreignKey = Find(
-            _comparer.Compare(WithForeignKey(ReferentialAction.NoAction, "Id"), WithForeignKey(ReferentialAction.Cascade, "OrderId")),
+            Run(WithForeignKey(ReferentialAction.NoAction, "Id"), WithForeignKey(ReferentialAction.Cascade, "OrderId")),
             DatabaseObjectType.ForeignKey,
             "FK_Lines_Orders");
 
@@ -238,8 +241,8 @@ public sealed class SchemaComparerTests
         var target = Database(InSchema("dbo", Procedure("P", "  CREATE PROCEDURE P AS SELECT 1\n")));
         var changed = Database(InSchema("dbo", Procedure("P", "CREATE PROCEDURE P AS SELECT 2")));
 
-        Assert.False(_comparer.Compare(source, target).HasDifferences);
-        var difference = Find(_comparer.Compare(source, changed), DatabaseObjectType.StoredProcedure, "P");
+        Assert.False(Run(source, target).HasDifferences);
+        var difference = Find(Run(source, changed), DatabaseObjectType.StoredProcedure, "P");
         Assert.Equal(DifferenceStatus.Modified, difference.Status);
         Assert.Equal([new("Definition", "CREATE PROCEDURE P AS SELECT 1", "CREATE PROCEDURE P AS SELECT 2")], difference.Properties);
     }
@@ -251,8 +254,8 @@ public sealed class SchemaComparerTests
         var source = Database(InSchema("dbo", Procedure("P", "create procedure P as select 1")));
         var target = Database(InSchema("dbo", Procedure("P", "CREATE PROCEDURE P AS SELECT 1")));
 
-        Assert.False(ignoreCase.Compare(source, target).HasDifferences);
-        Assert.True(_comparer.Compare(source, target).HasDifferences);
+        Assert.False(Run(source, target, ignoreCase).HasDifferences);
+        Assert.True(Run(source, target).HasDifferences);
     }
 
     [Theory]
@@ -263,7 +266,7 @@ public sealed class SchemaComparerTests
         var source = Database(InSchema("dbo", Procedure("P", null, encrypted)));
         var target = Database(InSchema("dbo", Procedure("P", "CREATE PROCEDURE P AS SELECT 1")));
 
-        var difference = Find(_comparer.Compare(source, target), DatabaseObjectType.StoredProcedure, "P");
+        var difference = Find(Run(source, target), DatabaseObjectType.StoredProcedure, "P");
 
         Assert.Equal(DifferenceStatus.Unknown, difference.Status);
         Assert.Equal(reason, difference.Reason);
@@ -276,11 +279,11 @@ public sealed class SchemaComparerTests
         var source = Database(InSchema("dbo", Table("Visible", Column("Id")), Table("Hidden", Column("Id"))));
         var target = Database(InSchema("dbo", Table("Visible", Column("Id")))) with { HasCompleteMetadata = false };
 
-        var hidden = Find(_comparer.Compare(source, target), DatabaseObjectType.Table, "Hidden");
+        var hidden = Find(Run(source, target), DatabaseObjectType.Table, "Hidden");
         Assert.Equal(DifferenceStatus.Unknown, hidden.Status);
         Assert.Contains("target login cannot see every object", hidden.Reason, StringComparison.Ordinal);
 
-        var reversed = Find(_comparer.Compare(target, source), DatabaseObjectType.Table, "Hidden");
+        var reversed = Find(Run(target, source), DatabaseObjectType.Table, "Hidden");
         Assert.Equal(DifferenceStatus.Unknown, reversed.Status);
     }
 
@@ -288,7 +291,7 @@ public sealed class SchemaComparerTests
     public void Sequence_properties_are_compared()
     {
         var difference = Find(
-            _comparer.Compare(Database(InSchema("dbo", Sequence("S"))), Database(InSchema("dbo", Sequence("S", start: 1000, increment: 10)))),
+            Run(Database(InSchema("dbo", Sequence("S"))), Database(InSchema("dbo", Sequence("S", start: 1000, increment: 10)))),
             DatabaseObjectType.Sequence,
             "S");
 
@@ -298,7 +301,7 @@ public sealed class SchemaComparerTests
     [Fact]
     public void Results_list_each_object_followed_by_its_triggers_and_children()
     {
-        var result = _comparer.Compare(Full(), Full());
+        var result = Run(Full(), Full());
 
         Assert.Equal(
             [
@@ -322,7 +325,7 @@ public sealed class SchemaComparerTests
         var source = Full() with { UnsupportedObjects = [new("dbo", "Alias", "SYNONYM", "Synonyms are not compared.")] };
         var target = Full() with { UnsupportedObjects = [new("", "PF_Date", "PARTITION_FUNCTION", "Partitioning is not compared.")] };
 
-        var result = _comparer.Compare(source, target);
+        var result = Run(source, target);
 
         Assert.Equal(source.UnsupportedObjects, result.SourceUnsupportedObjects);
         Assert.Equal(target.UnsupportedObjects, result.TargetUnsupportedObjects);

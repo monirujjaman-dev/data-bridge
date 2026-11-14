@@ -531,7 +531,7 @@ internal sealed class SchemaComparisonRun
     private bool SameKeyColumns(IReadOnlyList<IndexColumnDefinition> left, IReadOnlyList<IndexColumnDefinition> right)
     {
         var (leftKey, rightKey) = (KeyColumns(left), KeyColumns(right));
-        return leftKey.Length == rightKey.Length &&leftKey.Zip(rightKey).All(pair => SameIndexColumn(pair.First, pair.Second));
+        return leftKey.Length == rightKey.Length && leftKey.Zip(rightKey).All(pair => SameIndexColumn(pair.First, pair.Second));
     }
 
     private bool SameReference(ForeignKeyDefinition left, ForeignKeyDefinition right) =>
