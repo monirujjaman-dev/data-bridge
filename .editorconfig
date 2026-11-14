@@ -55,3 +55,7 @@ dotnet_naming_style.underscore_camel_case.required_prefix = _
 
 # Async code: library code does not need a synchronization context
 dotnet_diagnostic.CA2007.severity = none
+
+# CA1716 flags identifiers that are Visual Basic keywords (Shared, Error). DataBridge is C#-only and
+# the project names are fixed by the approved architecture.
+dotnet_diagnostic.CA1716.severity = none

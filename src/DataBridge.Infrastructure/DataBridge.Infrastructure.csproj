@@ -6,6 +6,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DataBridge.Infrastructure.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../DataBridge.Application/DataBridge.Application.csproj" />
     <ProjectReference Include="../DataBridge.Core/DataBridge.Core.csproj" />
     <ProjectReference Include="../DataBridge.Shared/DataBridge.Shared.csproj" />
