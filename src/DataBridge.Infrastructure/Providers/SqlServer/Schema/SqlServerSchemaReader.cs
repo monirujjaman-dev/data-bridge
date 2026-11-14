@@ -57,6 +57,11 @@ internal sealed class SqlServerSchemaReader(TimeProvider timeProvider) : ISchema
         {
             return Result.Failure<DatabaseSchema>(SchemaComparisonErrors.MetadataNotReadable(exception.Number, exception.Message));
         }
+        catch (Exception exception) when (opened && exception is InvalidOperationException or InvalidCastException or FormatException or OverflowException or ArgumentException)
+        {
+            // Unexpected catalog content (an unknown referential action, an unparsable value): a failure, not a crash.
+            return Result.Failure<DatabaseSchema>(SchemaComparisonErrors.MetadataNotUnderstood);
+        }
         catch (Exception exception) when (!opened
             && exception is not OperationCanceledException
             && SqlServerErrorTranslator.Translate(exception, request.Profile) is { } error)

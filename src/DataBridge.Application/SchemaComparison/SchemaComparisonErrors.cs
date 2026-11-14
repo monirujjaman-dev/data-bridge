@@ -14,6 +14,10 @@ public static class SchemaComparisonErrors
     public static Error MetadataNotReadable(int number, string message) =>
         new("SchemaComparison.MetadataNotReadable", $"The schema could not be read (server error {number}): {message}");
 
+    /// <summary>The catalog returned something the reader does not understand; details are not shown because they may name objects.</summary>
+    public static readonly Error MetadataNotUnderstood =
+        new("SchemaComparison.MetadataNotUnderstood", "The schema metadata returned by the server could not be interpreted. Nothing was changed on the database.");
+
     /// <summary>The metadata changed while it was being read, so it would not be consistent.</summary>
     public static readonly Error MetadataChanged =
         new("SchemaComparison.MetadataChanged", "The schema changed while it was being read. Run the comparison again.");

@@ -45,9 +45,20 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
             BuildSchemas(),
             unsupported,
             IdentifiersAreCaseSensitive: (catalog.ComparisonStyle & 1) == 0,
-            HasCompleteMetadata: catalog.HasViewDefinition,
+            HasCompleteMetadata: catalog.HasViewDefinition && !HasHiddenDefinitions(),
             capturedAtUtc);
     }
+
+    /// <summary>
+    /// Database-level <c>VIEW DEFINITION</c> can be denied per schema or object, so hidden definitions found while
+    /// reading also mean that objects may be hidden. Encrypted modules are excluded: they are visible, only unreadable.
+    /// </summary>
+    private bool HasHiddenDefinitions() =>
+        catalog.Modules.Values.Any(row => row.Module.Text is null && !row.Module.IsEncrypted)
+        || catalog.CheckConstraints.Any(row => row.Constraint.Expression is null)
+        || catalog.DefaultConstraints.Any(row => row.Constraint.Expression is null)
+        || catalog.Columns.Any(row => row.IsComputed && row.ComputedDefinition is null)
+        || catalog.ForeignKeys.Any(row => row.ReferencedTable is null);
 
     private SchemaDefinition[] BuildSchemas()
     {
@@ -116,7 +127,7 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
             _unsupported.Add(new UnsupportedObject(schema, row.Name, "PARTITIONING", "Table partitioning is not compared; the rest of the table is."));
         }
 
-        _tables[row.Id] = new TableBuilder(new DatabaseObjectId(schema, row.Name, DatabaseObjectType.Table));
+        _tables[row.Id] = new TableBuilder(new DatabaseObjectId(schema, row.Name, DatabaseObjectType.Table)) { HeapDataCompression = kind.HeapDataCompression };
     }
 
     private static string? UnsupportedTableReason(TableKindRow kind) => kind switch
@@ -187,11 +198,12 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
             Scale: _scaleTypes.Contains(baseType) ? row.Scale : null,
             IsNullable: row.IsNullable,
             Identity: row.IdentitySeed is { } seed && row.IdentityIncrement is { } increment
-                ? new IdentitySpecification(Integer(seed), Integer(increment))
+                ? new IdentitySpecification(Integer(seed), Integer(increment), row.IdentityNotForReplication)
                 : null,
-            Computed: row.IsComputed ? new ComputedSpecification(row.ComputedDefinition ?? "", row.IsPersisted) : null,
+            Computed: row.IsComputed ? new ComputedSpecification(row.ComputedDefinition, row.IsPersisted) : null,
             CollationName: row.Collation,
-            OrdinalPosition: ordinal);
+            OrdinalPosition: ordinal,
+            Options: row.Options == ColumnOptions.None ? null : row.Options);
     }
 
     private void AddIndexes()
@@ -211,11 +223,11 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
             {
                 if (row.IsPrimaryKey)
                 {
-                    table.PrimaryKey = new PrimaryKeyDefinition(row.Name, row.IsSystemNamed, row.TypeDescription, keyColumns);
+                    table.PrimaryKey = new PrimaryKeyDefinition(row.Name, row.IsSystemNamed, row.TypeDescription, keyColumns, row.Options);
                 }
                 else if (row.IsUniqueConstraint)
                 {
-                    table.UniqueConstraints.Add(new UniqueConstraintDefinition(row.Name, row.IsSystemNamed, row.TypeDescription, keyColumns));
+                    table.UniqueConstraints.Add(new UniqueConstraintDefinition(row.Name, row.IsSystemNamed, row.TypeDescription, keyColumns, row.Options));
                 }
                 else
                 {
@@ -254,7 +266,8 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
                 Action(row.OnDelete),
                 Action(row.OnUpdate),
                 row.IsDisabled,
-                row.IsNotForReplication));
+                row.IsNotForReplication,
+                row.IsNotTrusted));
         }
     }
 
@@ -308,6 +321,8 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
 
         public List<DefaultConstraintDefinition> DefaultConstraints { get; } = [];
 
+        public string? HeapDataCompression { get; init; }
+
         public List<IndexDefinition> Indexes { get; } = [];
 
         public TableDefinition Build() => new(
@@ -318,7 +333,8 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
             [.. ForeignKeys.OrderBy(item => item.Name, StringComparer.Ordinal)],
             [.. CheckConstraints.OrderBy(item => item.Name, StringComparer.Ordinal)],
             [.. DefaultConstraints.OrderBy(item => item.Name, StringComparer.Ordinal)],
-            [.. Indexes.OrderBy(item => item.Name, StringComparer.Ordinal)]);
+            [.. Indexes.OrderBy(item => item.Name, StringComparer.Ordinal)],
+            HeapDataCompression);
     }
 
     private sealed class ViewBuilder(DatabaseObjectId id, ModuleDefinition module)

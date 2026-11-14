@@ -241,6 +241,74 @@ public sealed class SqlServerSchemaComparisonTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task Hidden_constraint_and_computed_definitions_are_unknown_not_equal()
+    {
+        server.RequireServer();
+        const string table = """
+            CREATE TABLE dbo.Orders (
+                Id int NOT NULL,
+                Qty int NOT NULL CONSTRAINT DF_Orders_Qty DEFAULT (1) CONSTRAINT CK_Orders_Qty CHECK (Qty > 0),
+                Doubled AS (Qty * 2));
+            """;
+        var source = await CreateDatabaseAsync(table);
+        var target = await CreateDatabaseAsync(table.Replace("Qty > 0", "Qty > 5", StringComparison.Ordinal).Replace("Qty * 2", "Qty * 3", StringComparison.Ordinal));
+        var login = $"select_{Guid.NewGuid():N}"[..20];
+        var password = $"Lg!{Guid.NewGuid():N}aA1";
+
+        // SELECT makes the table visible, but its definitions stay hidden without VIEW DEFINITION.
+        await server.ExecuteAsync($"CREATE LOGIN [{login}] WITH PASSWORD = N'{password}', CHECK_POLICY = OFF;", Token);
+        await server.ExecuteInAsync(target, $"CREATE USER [{login}] FOR LOGIN [{login}]; GRANT SELECT ON dbo.Orders TO [{login}];", Token);
+
+        var sourceSchema = (await _reader.ReadSchemaAsync(server.Request(source), Token)).Value;
+        var targetSchema = (await _reader.ReadSchemaAsync(server.Request(target, login, password), Token)).Value;
+        var result = new SchemaComparer(_reader.DefinitionNormalizer).Compare(sourceSchema, targetSchema, Token);
+
+        Assert.False(targetSchema.HasCompleteMetadata);
+        Assert.Equal(DifferenceStatus.Unknown, Find(result, DatabaseObjectType.CheckConstraint, "CK_Orders_Qty").Status);
+        Assert.Equal(DifferenceStatus.Unknown, Find(result, DatabaseObjectType.DefaultConstraint, "DF_Orders_Qty").Status);
+        Assert.Equal(DifferenceStatus.Unknown, Find(result, DatabaseObjectType.Column, "Doubled").Status);
+        Assert.NotEqual(DifferenceStatus.Equal, Find(result, DatabaseObjectType.Table, "Orders").Status);
+    }
+
+    [Fact]
+    public async Task Engine_attributes_key_options_and_trust_are_compared()
+    {
+        server.RequireServer();
+        const string baseline = """
+            CREATE TABLE dbo.Parents (Id int NOT NULL CONSTRAINT PK_Parents PRIMARY KEY);
+            CREATE TABLE dbo.People (
+                Id int IDENTITY(1, 1) NOT NULL CONSTRAINT PK_People PRIMARY KEY,
+                ParentId int NULL CONSTRAINT FK_People_Parents REFERENCES dbo.Parents (Id),
+                Email varchar(200) NULL,
+                Age int NULL CONSTRAINT CK_People_Age CHECK (Age >= 0));
+            CREATE TABLE dbo.Log (Message nvarchar(200) NOT NULL);
+            CREATE TABLE dbo.Notes (Id int NOT NULL, Note varchar(100) NULL);
+            """;
+        var source = await CreateDatabaseAsync(baseline);
+        var target = await CreateDatabaseAsync(baseline + """
+
+            GO
+            ALTER TABLE dbo.People ALTER COLUMN Email ADD MASKED WITH (FUNCTION = 'email()');
+            ALTER TABLE dbo.Notes ALTER COLUMN Note ADD SPARSE;
+            ALTER TABLE dbo.People REBUILD WITH (DATA_COMPRESSION = PAGE);
+            ALTER TABLE dbo.People NOCHECK CONSTRAINT CK_People_Age;
+            ALTER TABLE dbo.People CHECK CONSTRAINT CK_People_Age;
+            ALTER TABLE dbo.People NOCHECK CONSTRAINT FK_People_Parents;
+            ALTER TABLE dbo.People WITH NOCHECK CHECK CONSTRAINT FK_People_Parents;
+            ALTER TABLE dbo.Log REBUILD WITH (DATA_COMPRESSION = ROW);
+            """);
+
+        var result = await CompareAsync(source, target);
+
+        Assert.Equal([new("Masking", null, "email()")], Find(result, DatabaseObjectType.Column, "Email").Properties);
+        Assert.Equal([new("Sparse", "No", "Yes")], Find(result, DatabaseObjectType.Column, "Note").Properties);
+        Assert.Equal([new("DataCompression", "NONE", "PAGE")], Find(result, DatabaseObjectType.PrimaryKey, "PK_People").Properties);
+        Assert.Equal([new("NotTrusted", "No", "Yes")], Find(result, DatabaseObjectType.CheckConstraint, "CK_People_Age").Properties);
+        Assert.Equal([new("NotTrusted", "No", "Yes")], Find(result, DatabaseObjectType.ForeignKey, "FK_People_Parents").Properties);
+        Assert.Equal([new("HeapDataCompression", "NONE", "ROW")], Find(result, DatabaseObjectType.Table, "Log").Properties);
+    }
+
+    [Fact]
     public async Task Case_sensitive_database_is_detected()
     {
         server.RequireServer();

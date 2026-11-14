@@ -64,8 +64,40 @@ internal sealed class SchemaComparisonRun
         _normalizer = normalizer;
         _cancellationToken = cancellationToken;
         _names = source.IdentifiersAreCaseSensitive || target.IdentifiersAreCaseSensitive
+            || HasCaseFoldingCollision(source) || HasCaseFoldingCollision(target)
             ? StringComparer.Ordinal
             : StringComparer.OrdinalIgnoreCase;
+    }
+
+    /// <summary>
+    /// Whether two names the database keeps apart fold to the same name under <see cref="StringComparer.OrdinalIgnoreCase"/>,
+    /// whose case rules can differ from a SQL collation's. Matching then falls back to ordinal, which never merges
+    /// distinct objects.
+    /// </summary>
+    private static bool HasCaseFoldingCollision(DatabaseSchema schema)
+    {
+        static bool HasDuplicates(IEnumerable<string> names)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return names.Any(name => !seen.Add(name));
+        }
+
+        static IEnumerable<IEnumerable<string>> ChildNamespaces(TableDefinition table) =>
+        [
+            table.Columns.Select(column => column.Name),
+            table.UniqueConstraints.Select(constraint => constraint.Name),
+            table.ForeignKeys.Select(foreignKey => foreignKey.Name),
+            table.CheckConstraints.Select(constraint => constraint.Name),
+            table.DefaultConstraints.Select(constraint => constraint.Name),
+            table.Indexes.Select(index => index.Name),
+        ];
+
+        return HasDuplicates(schema.Schemas.Select(item => item.Name))
+            || schema.Schemas.Any(item => HasDuplicates(SchemaObject.All(schema)
+                .Where(entry => entry.Id.SchemaName == item.Name)
+                .Select(entry => entry.Id.ObjectName)))
+            || schema.Schemas.SelectMany(item => item.Tables).Any(table => ChildNamespaces(table).Any(HasDuplicates))
+            || schema.Schemas.SelectMany(item => item.Views).Any(view => HasDuplicates(view.Indexes.Select(index => index.Name)));
     }
 
     public IReadOnlyList<SchemaObjectDifference> Execute()
@@ -261,7 +293,9 @@ internal sealed class SchemaComparisonRun
                 (left, right) => _names.Equals(left.ColumnName, right.ColumnName)));
         CompareChildren(children, parent, DatabaseObjectType.Index, source.Indexes, target.Indexes, index => index.Name, CompareIndex);
 
-        AddWithChildren(parent, null, null, children);
+        var properties = new PropertyDifferenceBuilder();
+        properties.AddText("HeapDataCompression", source.HeapDataCompression, target.HeapDataCompression, StringComparer.OrdinalIgnoreCase);
+        AddWithChildren(parent, properties, null, children);
     }
 
     private void CompareColumn(ColumnDefinition source, ColumnDefinition target, PropertyDifferenceBuilder properties)
@@ -273,13 +307,31 @@ internal sealed class SchemaComparisonRun
         properties.Add("Nullable", source.IsNullable, target.IsNullable);
         properties.AddText("Collation", source.CollationName, target.CollationName, StringComparer.OrdinalIgnoreCase);
         properties.Add("Identity", source.Identity, target.Identity, FormatIdentity);
-        properties.AddSql("ComputedExpression", source.Computed?.Expression, target.Computed?.Expression, _normalizer.Normalize);
         if (source.Computed is not null && target.Computed is not null)
         {
+            properties.AddHiddenSql("ComputedExpression", source.Computed.Expression, target.Computed.Expression, _normalizer.Normalize);
             properties.Add("Persisted", source.Computed.IsPersisted, target.Computed.IsPersisted);
         }
+        else
+        {
+            properties.Add("Computed", source.Computed is not null, target.Computed is not null);
+        }
 
+        CompareColumnOptions(source.EffectiveOptions, target.EffectiveOptions, properties);
         properties.Add("OrdinalPosition", source.OrdinalPosition, target.OrdinalPosition);
+    }
+
+    private static void CompareColumnOptions(ColumnOptions source, ColumnOptions target, PropertyDifferenceBuilder properties)
+    {
+        properties.Add("Sparse", source.IsSparse, target.IsSparse);
+        properties.Add("ColumnSet", source.IsColumnSet, target.IsColumnSet);
+        properties.Add("RowGuidCol", source.IsRowGuidColumn, target.IsRowGuidColumn);
+        properties.Add("FileStream", source.IsFileStream, target.IsFileStream);
+        properties.AddText("XmlSchemaCollection", source.XmlSchemaCollection, target.XmlSchemaCollection, StringComparer.Ordinal);
+        properties.AddText("Masking", source.MaskingFunction, target.MaskingFunction, StringComparer.Ordinal);
+        properties.AddText("Encryption", source.EncryptionType, target.EncryptionType, StringComparer.OrdinalIgnoreCase);
+        properties.AddText("GeneratedAlways", source.GeneratedAlwaysType, target.GeneratedAlwaysType, StringComparer.OrdinalIgnoreCase);
+        properties.Add("Hidden", source.IsHidden, target.IsHidden);
     }
 
     private void ComparePrimaryKeys(
@@ -307,11 +359,15 @@ internal sealed class SchemaComparisonRun
         }
 
         CompareKey(source.IndexType, source.Columns, target.IndexType, target.Columns, properties);
+        CompareIndexOptions(source.Options, target.Options, properties);
         children.Add(Child(DatabaseObjectId.ForChild(parent, source.Name, DatabaseObjectType.PrimaryKey), properties));
     }
 
-    private void CompareUniqueConstraint(UniqueConstraintDefinition source, UniqueConstraintDefinition target, PropertyDifferenceBuilder properties) =>
+    private void CompareUniqueConstraint(UniqueConstraintDefinition source, UniqueConstraintDefinition target, PropertyDifferenceBuilder properties)
+    {
         CompareKey(source.IndexType, source.Columns, target.IndexType, target.Columns, properties);
+        CompareIndexOptions(source.Options, target.Options, properties);
+    }
 
     private void CompareKey(
         string sourceIndexType,
@@ -326,25 +382,33 @@ internal sealed class SchemaComparisonRun
 
     private void CompareForeignKey(ForeignKeyDefinition source, ForeignKeyDefinition target, PropertyDifferenceBuilder properties)
     {
+        if (ReferencedTable(source) is null || ReferencedTable(target) is null)
+        {
+            properties.MarkUnknown("The referenced table is not visible to the login on one side.");
+            return;
+        }
+
         properties.AddText("ReferencedTable", ReferencedTable(source), ReferencedTable(target), _names);
         properties.AddList("Columns", source.Columns, target.Columns, SameMapping, mapping => $"{mapping.ColumnName} -> {mapping.ReferencedColumnName}");
         properties.Add("OnDelete", source.OnDelete, target.OnDelete, FormatAction);
         properties.Add("OnUpdate", source.OnUpdate, target.OnUpdate, FormatAction);
         properties.Add("Disabled", source.IsDisabled, target.IsDisabled);
         properties.Add("NotForReplication", source.IsNotForReplication, target.IsNotForReplication);
+        properties.Add("NotTrusted", source.IsNotTrusted, target.IsNotTrusted);
     }
 
     private void CompareCheckConstraint(CheckConstraintDefinition source, CheckConstraintDefinition target, PropertyDifferenceBuilder properties)
     {
-        properties.AddSql("Expression", source.Expression, target.Expression, _normalizer.Normalize);
+        properties.AddHiddenSql("Expression", source.Expression, target.Expression, _normalizer.Normalize);
         properties.Add("Disabled", source.IsDisabled, target.IsDisabled);
         properties.Add("NotForReplication", source.IsNotForReplication, target.IsNotForReplication);
+        properties.Add("NotTrusted", source.IsNotTrusted, target.IsNotTrusted);
     }
 
     private void CompareDefaultConstraint(DefaultConstraintDefinition source, DefaultConstraintDefinition target, PropertyDifferenceBuilder properties)
     {
         properties.AddText("Column", source.ColumnName, target.ColumnName, _names);
-        properties.AddSql("Expression", source.Expression, target.Expression, _normalizer.Normalize);
+        properties.AddHiddenSql("Expression", source.Expression, target.Expression, _normalizer.Normalize);
     }
 
     private void CompareIndex(IndexDefinition source, IndexDefinition target, PropertyDifferenceBuilder properties)
@@ -353,8 +417,11 @@ internal sealed class SchemaComparisonRun
         properties.Add("Unique", source.IsUnique, target.IsUnique);
         properties.AddList("IncludedColumns", IncludedColumns(source.Columns), IncludedColumns(target.Columns), _names.Equals, name => name);
         properties.AddSql("Filter", source.FilterDefinition, target.FilterDefinition, _normalizer.Normalize);
+        CompareIndexOptions(source.Options, target.Options, properties);
+    }
 
-        var (sourceOptions, targetOptions) = (source.Options, target.Options);
+    private static void CompareIndexOptions(IndexOptions sourceOptions, IndexOptions targetOptions, PropertyDifferenceBuilder properties)
+    {
         properties.Add("IgnoreDuplicateKey", sourceOptions.IgnoreDuplicateKey, targetOptions.IgnoreDuplicateKey);
         properties.Add("FillFactor", sourceOptions.FillFactor, targetOptions.FillFactor);
         properties.Add("PadIndex", sourceOptions.IsPadded, targetOptions.IsPadded);
@@ -519,14 +586,17 @@ internal sealed class SchemaComparisonRun
     }
 
     private static SchemaObjectDifference Child(DatabaseObjectId id, PropertyDifferenceBuilder properties) =>
-        new(id, properties.HasDifferences ? DifferenceStatus.Modified : DifferenceStatus.Equal, properties.Build());
+        properties.UnknownReason is { } reason
+            ? new(id, DifferenceStatus.Unknown, [], reason)
+            : new(id, properties.HasDifferences ? DifferenceStatus.Modified : DifferenceStatus.Equal, properties.Build());
 
     private static SchemaObjectDifference Equal(DatabaseObjectId id) => new(id, DifferenceStatus.Equal, []);
 
     // Definition equality used for matching
 
-    private bool SameSql(string left, string right) =>
-        string.Equals(_normalizer.Normalize(left), _normalizer.Normalize(right), StringComparison.Ordinal);
+    /// <summary>Hidden text (<see langword="null"/>) never matches, so unrelated hidden constraints are not paired.</summary>
+    private bool SameSql(string? left, string? right) =>
+        left is not null && right is not null && string.Equals(_normalizer.Normalize(left), _normalizer.Normalize(right), StringComparison.Ordinal);
 
     private bool SameKeyColumns(IReadOnlyList<IndexColumnDefinition> left, IReadOnlyList<IndexColumnDefinition> right)
     {
@@ -535,7 +605,8 @@ internal sealed class SchemaComparisonRun
     }
 
     private bool SameReference(ForeignKeyDefinition left, ForeignKeyDefinition right) =>
-        _names.Equals(ReferencedTable(left), ReferencedTable(right))
+        ReferencedTable(left) is not null
+        && _names.Equals(ReferencedTable(left), ReferencedTable(right))
         && left.Columns.Count == right.Columns.Count
         && left.Columns.Zip(right.Columns).All(pair => SameMapping(pair.First, pair.Second));
 
@@ -552,8 +623,10 @@ internal sealed class SchemaComparisonRun
     private string[] IncludedColumns(IReadOnlyList<IndexColumnDefinition> columns) =>
         columns.Where(column => column.IsIncluded).Select(column => column.ColumnName).Order(_names).ToArray();
 
-    private static string ReferencedTable(ForeignKeyDefinition foreignKey) =>
-        $"{foreignKey.ReferencedSchemaName}.{foreignKey.ReferencedTableName}";
+    private static string? ReferencedTable(ForeignKeyDefinition foreignKey) =>
+        foreignKey.ReferencedSchemaName is null || foreignKey.ReferencedTableName is null
+            ? null
+            : $"{foreignKey.ReferencedSchemaName}.{foreignKey.ReferencedTableName}";
 
     // Display formatting
 
@@ -566,7 +639,10 @@ internal sealed class SchemaComparisonRun
     private static string? FormatNullable(byte? value) => value is { } number ? PropertyDifferenceBuilder.FormatInteger(number) : null;
 
     private static string FormatIdentity(IdentitySpecification? identity) =>
-        identity is null ? "No" : $"IDENTITY({SqlText.Integer(identity.Seed)}, {SqlText.Integer(identity.Increment)})";
+        identity is null
+            ? "No"
+            : $"IDENTITY({SqlText.Integer(identity.Seed)}, {SqlText.Integer(identity.Increment)})"
+                + (identity.IsNotForReplication ? " NOT FOR REPLICATION" : "");
 
     private static string FormatAction(ReferentialAction action) => action switch
     {

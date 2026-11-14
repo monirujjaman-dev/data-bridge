@@ -54,7 +54,9 @@ internal static class SqlServerCatalogQuery
             CAST(CASE WHEN EXISTS (
                 SELECT 1 FROM sys.indexes AS i
                 JOIN sys.data_spaces AS ds ON ds.data_space_id = i.data_space_id
-                WHERE i.object_id = t.object_id AND ds.type = 'PS') THEN 1 ELSE 0 END AS bit)
+                WHERE i.object_id = t.object_id AND ds.type = 'PS') THEN 1 ELSE 0 END AS bit),
+            (SELECT p.data_compression_desc FROM sys.partitions AS p
+             WHERE p.object_id = t.object_id AND p.index_id = 0 AND p.partition_number = 1)
         FROM sys.tables AS t
         WHERE t.is_ms_shipped = 0;
 
@@ -63,12 +65,19 @@ internal static class SqlServerCatalogQuery
         SELECT c.object_id, c.name, ty.name, SCHEMA_NAME(ty.schema_id), ty.is_user_defined, TYPE_NAME(c.system_type_id),
             c.max_length, c.precision, c.scale, c.is_nullable, c.collation_name,
             CONVERT(varchar(40), ic.seed_value), CONVERT(varchar(40), ic.increment_value),
-            cc.definition, cc.is_persisted, c.is_computed
+            cc.definition, cc.is_persisted, c.is_computed,
+            c.is_rowguidcol, c.is_sparse, c.is_column_set, c.is_filestream,
+            CASE WHEN xsc.xml_collection_id IS NULL THEN NULL ELSE SCHEMA_NAME(xsc.schema_id) + N'.' + xsc.name END,
+            mc.masking_function, c.encryption_type_desc,
+            CASE WHEN c.generated_always_type = 0 THEN NULL ELSE c.generated_always_type_desc END,
+            c.is_hidden, ic.is_not_for_replication
         FROM sys.columns AS c
         JOIN sys.objects AS o ON o.object_id = c.object_id
         JOIN sys.types AS ty ON ty.user_type_id = c.user_type_id
         LEFT JOIN sys.identity_columns AS ic ON ic.object_id = c.object_id AND ic.column_id = c.column_id
         LEFT JOIN sys.computed_columns AS cc ON cc.object_id = c.object_id AND cc.column_id = c.column_id
+        LEFT JOIN sys.xml_schema_collections AS xsc ON xsc.xml_collection_id = c.xml_collection_id AND c.xml_collection_id > 0
+        LEFT JOIN sys.masked_columns AS mc ON mc.object_id = c.object_id AND mc.column_id = c.column_id
         WHERE o.type = 'U' AND o.is_ms_shipped = 0
         ORDER BY c.object_id, c.column_id;
 
@@ -95,9 +104,11 @@ internal static class SqlServerCatalogQuery
         ORDER BY ic.object_id, ic.index_id, CASE WHEN ic.key_ordinal = 0 THEN 1 ELSE 0 END, ic.key_ordinal, ic.index_column_id;
 
         SELECT fk.object_id, fk.parent_object_id, fk.name, fk.is_system_named, SCHEMA_NAME(ro.schema_id), ro.name,
-            fk.delete_referential_action, fk.update_referential_action, fk.is_disabled, fk.is_not_for_replication
+            fk.delete_referential_action, fk.update_referential_action, fk.is_disabled, fk.is_not_for_replication,
+            fk.is_not_trusted
         FROM sys.foreign_keys AS fk
-        JOIN sys.objects AS ro ON ro.object_id = fk.referenced_object_id
+        -- LEFT JOIN: a referenced table the login cannot see must not make the foreign key disappear.
+        LEFT JOIN sys.objects AS ro ON ro.object_id = fk.referenced_object_id
         WHERE fk.is_ms_shipped = 0;
 
         SELECT fkc.constraint_object_id, pc.name, rc.name
@@ -106,7 +117,8 @@ internal static class SqlServerCatalogQuery
         JOIN sys.columns AS rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
         ORDER BY fkc.constraint_object_id, fkc.constraint_column_id;
 
-        SELECT cc.parent_object_id, cc.name, cc.is_system_named, cc.definition, cc.is_disabled, cc.is_not_for_replication
+        SELECT cc.parent_object_id, cc.name, cc.is_system_named, cc.definition, cc.is_disabled, cc.is_not_for_replication,
+            cc.is_not_trusted
         FROM sys.check_constraints AS cc
         WHERE cc.is_ms_shipped = 0;
 

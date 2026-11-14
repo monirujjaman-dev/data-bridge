@@ -118,7 +118,9 @@ public sealed record ColumnDefinition(
     IdentitySpecification? Identity,   // BigInteger seed and increment (up to 38 digits)
     ComputedSpecification? Computed,   // expression and persisted flag
     string? CollationName,
-    int OrdinalPosition);    // 1-based, gaps from dropped columns removed
+    int OrdinalPosition,     // 1-based, gaps from dropped columns removed
+    ColumnOptions? Options); // sparse, column set, ROWGUIDCOL, FILESTREAM, XML schema, masking,
+                             // Always Encrypted, generated-always, hidden
 
 public sealed record UnsupportedObject(
     string SchemaName,
@@ -138,7 +140,10 @@ Additional types:
 -   `PrimaryKeyDefinition`, `UniqueConstraintDefinition`,
     `ForeignKeyDefinition` (with `ForeignKeyColumnMapping` and
     `ReferentialAction`), `CheckConstraintDefinition`,
-    `DefaultConstraintDefinition`; each carries `IsSystemNamed`.
+    `DefaultConstraintDefinition`; each carries `IsSystemNamed`. PK and
+    unique constraints carry their index options; checks and foreign keys
+    carry `IsNotTrusted` (`WITH NOCHECK`). Definitions and foreign-key
+    references the login cannot see are null and compare as `Unknown`.
 -   `IndexDefinition` with `IndexColumnDefinition` and `IndexOptions`.
 
 Column defaults are modeled only as `DefaultConstraintDefinition`

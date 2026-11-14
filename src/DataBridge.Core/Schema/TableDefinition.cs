@@ -2,7 +2,10 @@ using System.Numerics;
 
 namespace DataBridge.Core.Schema;
 
-/// <summary>A table and its children. Columns are in ordinal order.</summary>
+/// <summary>
+/// A table and its children. Columns are in ordinal order. <c>HeapDataCompression</c> is the compression of a
+/// table without a clustered index, or <see langword="null"/> when it has one (the clustered index carries it).
+/// </summary>
 public sealed record TableDefinition(
     DatabaseObjectId Id,
     IReadOnlyList<ColumnDefinition> Columns,
@@ -11,7 +14,8 @@ public sealed record TableDefinition(
     IReadOnlyList<ForeignKeyDefinition> ForeignKeys,
     IReadOnlyList<CheckConstraintDefinition> CheckConstraints,
     IReadOnlyList<DefaultConstraintDefinition> DefaultConstraints,
-    IReadOnlyList<IndexDefinition> Indexes);
+    IReadOnlyList<IndexDefinition> Indexes,
+    string? HeapDataCompression = null);
 
 /// <summary>
 /// A column. Type facets that do not apply to the type are <see langword="null"/>. Defaults are modeled as
@@ -31,6 +35,7 @@ public sealed record TableDefinition(
 /// <param name="Computed">The computed specification, or <see langword="null"/> when the column is not computed.</param>
 /// <param name="CollationName">For character types only.</param>
 /// <param name="OrdinalPosition">The 1-based position among the table's columns (gaps from dropped columns removed).</param>
+/// <param name="Options">Storage, security and engine-managed attributes; <see langword="null"/> means none.</param>
 public sealed record ColumnDefinition(
     string Name,
     string SqlTypeName,
@@ -42,13 +47,35 @@ public sealed record ColumnDefinition(
     IdentitySpecification? Identity,
     ComputedSpecification? Computed,
     string? CollationName,
-    int OrdinalPosition);
+    int OrdinalPosition,
+    ColumnOptions? Options = null)
+{
+    public ColumnOptions EffectiveOptions => Options ?? ColumnOptions.None;
+}
+
+/// <summary>
+/// Column attributes beyond type and nullability that change storage, security or engine behavior. Text values
+/// are as the engine names them; <see langword="null"/> means not applicable.
+/// </summary>
+public sealed record ColumnOptions(
+    bool IsSparse,
+    bool IsColumnSet,
+    bool IsRowGuidColumn,
+    bool IsFileStream,
+    string? XmlSchemaCollection,
+    string? MaskingFunction,
+    string? EncryptionType,
+    string? GeneratedAlwaysType,
+    bool IsHidden)
+{
+    public static readonly ColumnOptions None = new(false, false, false, false, null, null, null, null, false);
+}
 
 /// <summary>An identity column's seed and increment: integers of up to 38 digits, so not <see cref="decimal"/>.</summary>
-public sealed record IdentitySpecification(BigInteger Seed, BigInteger Increment);
+public sealed record IdentitySpecification(BigInteger Seed, BigInteger Increment, bool IsNotForReplication = false);
 
-/// <summary>A computed column's expression as the engine stores it.</summary>
-public sealed record ComputedSpecification(string Expression, bool IsPersisted);
+/// <summary>A computed column. <c>Expression</c> is <see langword="null"/> when the login cannot see it.</summary>
+public sealed record ComputedSpecification(string? Expression, bool IsPersisted);
 
 /// <summary>
 /// A sequence. Values are integers of up to 38 digits. <c>CacheSize</c> is the explicit cache size, or

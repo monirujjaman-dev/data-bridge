@@ -43,22 +43,26 @@ public sealed record IndexOptions(
 /// <param name="IsSystemNamed">Whether the engine generated the name; such names differ between databases and are not compared.</param>
 /// <param name="IndexType">The backing index type, for example <c>CLUSTERED</c>.</param>
 /// <param name="Columns">The key columns in key order.</param>
+/// <param name="Options">The backing index options.</param>
 public sealed record PrimaryKeyDefinition(
     string Name,
     bool IsSystemNamed,
     string IndexType,
-    IReadOnlyList<IndexColumnDefinition> Columns);
+    IReadOnlyList<IndexColumnDefinition> Columns,
+    IndexOptions Options);
 
 /// <summary>A unique constraint with its ordered key columns.</summary>
 /// <param name="Name">The constraint name.</param>
 /// <param name="IsSystemNamed">Whether the engine generated the name.</param>
 /// <param name="IndexType">The backing index type, for example <c>NONCLUSTERED</c>.</param>
 /// <param name="Columns">The key columns in key order.</param>
+/// <param name="Options">The backing index options.</param>
 public sealed record UniqueConstraintDefinition(
     string Name,
     bool IsSystemNamed,
     string IndexType,
-    IReadOnlyList<IndexColumnDefinition> Columns);
+    IReadOnlyList<IndexColumnDefinition> Columns,
+    IndexOptions Options);
 
 /// <summary>What a foreign key does when the referenced row is deleted or its key updated.</summary>
 public enum ReferentialAction
@@ -72,29 +76,38 @@ public enum ReferentialAction
 /// <summary>One column mapping of a foreign key, in constraint order.</summary>
 public sealed record ForeignKeyColumnMapping(string ColumnName, string ReferencedColumnName);
 
-/// <summary>A foreign key with its ordered column mappings and referential actions (FR-SCH-004).</summary>
+/// <summary>
+/// A foreign key with its ordered column mappings and referential actions (FR-SCH-004). The referenced names are
+/// <see langword="null"/> when the login cannot see the referenced table. <c>IsNotTrusted</c> means existing rows
+/// were not checked (<c>WITH NOCHECK</c>).
+/// </summary>
 public sealed record ForeignKeyDefinition(
     string Name,
     bool IsSystemNamed,
-    string ReferencedSchemaName,
-    string ReferencedTableName,
+    string? ReferencedSchemaName,
+    string? ReferencedTableName,
     IReadOnlyList<ForeignKeyColumnMapping> Columns,
     ReferentialAction OnDelete,
     ReferentialAction OnUpdate,
     bool IsDisabled,
-    bool IsNotForReplication);
+    bool IsNotForReplication,
+    bool IsNotTrusted = false);
 
-/// <summary>A check constraint; the expression is as the engine stores it.</summary>
+/// <summary>
+/// A check constraint; the expression is as the engine stores it, or <see langword="null"/> when the login cannot
+/// see it. <c>IsNotTrusted</c> means existing rows were not checked.
+/// </summary>
 public sealed record CheckConstraintDefinition(
     string Name,
     bool IsSystemNamed,
-    string Expression,
+    string? Expression,
     bool IsDisabled,
-    bool IsNotForReplication);
+    bool IsNotForReplication,
+    bool IsNotTrusted = false);
 
-/// <summary>A default constraint on one column; the expression is as the engine stores it.</summary>
+/// <summary>A default constraint on one column; the expression is <see langword="null"/> when the login cannot see it.</summary>
 public sealed record DefaultConstraintDefinition(
     string Name,
     bool IsSystemNamed,
     string ColumnName,
-    string Expression);
+    string? Expression);

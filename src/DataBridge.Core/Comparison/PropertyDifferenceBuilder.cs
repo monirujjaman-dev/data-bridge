@@ -12,6 +12,26 @@ internal sealed class PropertyDifferenceBuilder
 
     public bool HasDifferences => _differences.Count > 0;
 
+    /// <summary>Why the pair cannot be compared, for example because a definition is hidden; makes it Unknown.</summary>
+    public string? UnknownReason { get; private set; }
+
+    public void MarkUnknown(string reason) => UnknownReason ??= reason;
+
+    /// <summary>
+    /// Like <see cref="AddSql"/>, but text that the login cannot see (<see langword="null"/>) on either side makes the
+    /// pair Unknown: two hidden definitions are never treated as equal.
+    /// </summary>
+    public void AddHiddenSql(string property, string? source, string? target, Func<string, string> normalize)
+    {
+        if (source is null || target is null)
+        {
+            MarkUnknown($"The {property} is not visible to the login on one side; it needs VIEW DEFINITION permission.");
+            return;
+        }
+
+        AddSql(property, source, target, normalize);
+    }
+
     public IReadOnlyList<PropertyDifference> Build() => _differences.ToArray();
 
     public void Add<T>(string property, T source, T target, Func<T, string?> format)

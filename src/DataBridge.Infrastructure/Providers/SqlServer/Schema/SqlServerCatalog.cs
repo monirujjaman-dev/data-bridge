@@ -6,7 +6,15 @@ namespace DataBridge.Infrastructure.Providers.SqlServer.Schema;
 
 internal sealed record ObjectRow(int Id, int SchemaId, string Name, string Type, string TypeDescription, int ParentId);
 
-internal sealed record TableKindRow(int Id, int TemporalType, bool IsMemoryOptimized, bool IsNode, bool IsEdge, bool IsFileTable, bool IsPartitioned);
+internal sealed record TableKindRow(
+    int Id,
+    int TemporalType,
+    bool IsMemoryOptimized,
+    bool IsNode,
+    bool IsEdge,
+    bool IsFileTable,
+    bool IsPartitioned,
+    string? HeapDataCompression);
 
 internal sealed record ColumnRow(
     int ObjectId,
@@ -24,7 +32,9 @@ internal sealed record ColumnRow(
     string? IdentityIncrement,
     string? ComputedDefinition,
     bool IsPersisted,
-    bool IsComputed);
+    bool IsComputed,
+    ColumnOptions Options,
+    bool IdentityNotForReplication);
 
 internal sealed record IndexRow(
     int ObjectId,
@@ -46,12 +56,13 @@ internal sealed record ForeignKeyRow(
     int ParentId,
     string Name,
     bool IsSystemNamed,
-    string ReferencedSchema,
-    string ReferencedTable,
+    string? ReferencedSchema,
+    string? ReferencedTable,
     int OnDelete,
     int OnUpdate,
     bool IsDisabled,
-    bool IsNotForReplication);
+    bool IsNotForReplication,
+    bool IsNotTrusted);
 
 internal sealed record ForeignKeyColumnRow(int ConstraintId, ForeignKeyColumnMapping Mapping);
 
@@ -173,7 +184,7 @@ internal sealed class SqlServerCatalog
         new(Int(row, 0), Int(row, 1), row.GetString(2), row.GetString(3), row.GetString(4), Int(row, 5));
 
     private static TableKindRow ReadTableKind(SqlDataReader row) =>
-        new(Int(row, 0), Int(row, 1), Bool(row, 2), Bool(row, 3), Bool(row, 4), Bool(row, 5), Bool(row, 6));
+        new(Int(row, 0), Int(row, 1), Bool(row, 2), Bool(row, 3), Bool(row, 4), Bool(row, 5), Bool(row, 6), Text(row, 7));
 
     private static ColumnRow ReadColumn(SqlDataReader row) => new(
         ObjectId: Int(row, 0),
@@ -191,7 +202,18 @@ internal sealed class SqlServerCatalog
         IdentityIncrement: Text(row, 12),
         ComputedDefinition: Text(row, 13),
         IsPersisted: Bool(row, 14),
-        IsComputed: Bool(row, 15));
+        IsComputed: Bool(row, 15),
+        Options: new ColumnOptions(
+            IsSparse: Bool(row, 17),
+            IsColumnSet: Bool(row, 18),
+            IsRowGuidColumn: Bool(row, 16),
+            IsFileStream: Bool(row, 19),
+            XmlSchemaCollection: Text(row, 20),
+            MaskingFunction: Text(row, 21),
+            EncryptionType: Text(row, 22),
+            GeneratedAlwaysType: Text(row, 23),
+            IsHidden: Bool(row, 24)),
+        IdentityNotForReplication: Bool(row, 25));
 
     private static IndexRow ReadIndex(SqlDataReader row)
     {
@@ -230,15 +252,15 @@ internal sealed class SqlServerCatalog
     }
 
     private static ForeignKeyRow ReadForeignKey(SqlDataReader row) => new(
-        Int(row, 0), Int(row, 1), row.GetString(2), Bool(row, 3), row.GetString(4), row.GetString(5),
-        Int(row, 6), Int(row, 7), Bool(row, 8), Bool(row, 9));
+        Int(row, 0), Int(row, 1), row.GetString(2), Bool(row, 3), Text(row, 4), Text(row, 5),
+        Int(row, 6), Int(row, 7), Bool(row, 8), Bool(row, 9), Bool(row, 10));
 
-    // A definition is NULL when the login cannot see it; the database is then flagged as incomplete.
+    // A definition is NULL when the login cannot see it: kept as NULL so the comparison reports it as unknown.
     private static CheckRow ReadCheck(SqlDataReader row) =>
-        new(Int(row, 0), new CheckConstraintDefinition(row.GetString(1), Bool(row, 2), Text(row, 3) ?? "", Bool(row, 4), Bool(row, 5)));
+        new(Int(row, 0), new CheckConstraintDefinition(row.GetString(1), Bool(row, 2), Text(row, 3), Bool(row, 4), Bool(row, 5), Bool(row, 6)));
 
     private static DefaultRow ReadDefault(SqlDataReader row) =>
-        new(Int(row, 0), new DefaultConstraintDefinition(row.GetString(1), Bool(row, 2), row.GetString(3), Text(row, 4) ?? ""));
+        new(Int(row, 0), new DefaultConstraintDefinition(row.GetString(1), Bool(row, 2), row.GetString(3), Text(row, 4)));
 
     private static ModuleRow ReadModule(SqlDataReader row) =>
         new(Int(row, 0), new ModuleDefinition(Text(row, 1), Bool(row, 2), Bool(row, 3), Bool(row, 4), Bool(row, 5)));

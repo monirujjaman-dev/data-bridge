@@ -34,7 +34,7 @@ internal static class SchemaFixtures
         new(name, "NONCLUSTERED", false, columns, null, DefaultIndexOptions);
 
     public static PrimaryKeyDefinition PrimaryKey(string name, bool systemNamed, params string[] columns) =>
-        new(name, systemNamed, "CLUSTERED", columns.Select((column, index) => Key(column, index + 1)).ToArray());
+        new(name, systemNamed, "CLUSTERED", columns.Select((column, index) => Key(column, index + 1)).ToArray(), DefaultIndexOptions);
 
     public static ModuleDefinition Module(string? text, bool encrypted = false) => new(text, encrypted, false, true, true);
 
