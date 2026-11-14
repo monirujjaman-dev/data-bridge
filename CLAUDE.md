@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current repository state
 
-Phase 0 is complete; Phase 1 is in progress. Connection profiles exist
-end to end below the UI (Core model, Application use cases and ports,
-SQLite repository and migrations, OS credential stores, redacting
-logging); the Desktop project is not wired to them yet. `DataBridge.Desktop` is
-a placeholder Avalonia window that loads the visual design system
-(`PRODUCT.md`, `DESIGN.md`, `src/DataBridge.Desktop/Themes/`,
-`src/DataBridge.Desktop/Assets/`), drafted ahead of Phase 1. Read these
-before implementing; they are the source of truth:
+Phases 0 and 1 are implemented; Phase 1 closes when its pull request
+passes CI on all three operating systems. Connection profiles work end
+to end: Core model, Application use cases and ports, SQLite repository
+and migrations, OS credential stores, redacting logging, and the
+Desktop shell (Generic Host, DI, MVVM, navigation rail, Connections
+screen) styled by the visual design system (`PRODUCT.md`, `DESIGN.md`,
+`src/DataBridge.Desktop/Themes/`, `src/DataBridge.Desktop/Assets/`).
+Phase 2 (SQL Server connectivity) is next. Read these before
+implementing; they are the source of truth:
 
 -   `docs/requirements.md`: product scope, user journeys, acceptance
     criteria, v1.0 vs deferred features.

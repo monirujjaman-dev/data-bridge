@@ -368,6 +368,13 @@ so a failed save never loses the previous password.
 -   Use virtualized grids and incremental paging.
 -   Use background tasks, cancellation and progress.
 -   Never marshal huge result sets to the UI thread.
+-   View models run every Application call on the thread pool and resume
+    on the UI thread: some ports (SQLite) complete synchronously behind
+    async signatures, so awaiting them directly would block the UI.
+-   The composition root (`Desktop/DependencyInjection`) builds a
+    Generic Host with DI validation on build; pages are singletons so
+    their state survives navigation. The rail lists only screens whose
+    use cases exist.
 -   Display source, target and write-target identity prominently.
 -   Visual design (tokens, route sign, components) follows `DESIGN.md`;
     theme resources live under `src/DataBridge.Desktop/Themes/`.

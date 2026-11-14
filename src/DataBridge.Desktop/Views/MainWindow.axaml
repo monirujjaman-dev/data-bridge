@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DataBridge.Desktop.ViewModels"
+        x:Class="DataBridge.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="DataBridge"
+        Icon="avares://DataBridge.Desktop/Assets/Brand/Icons/databridge.ico"
+        Width="1280"
+        Height="800"
+        MinWidth="960"
+        MinHeight="600">
+
+  <DockPanel>
+
+    <!-- Navigation rail: app mark and name, then one entry per screen whose use cases exist. -->
+    <Border Classes="rail" DockPanel.Dock="Left">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="16,16,16,24">
+          <Viewbox Width="24" Height="24">
+            <Canvas Width="64" Height="64">
+              <Path Data="{StaticResource LogoTile}" Fill="{StaticResource DbSignBrush}" />
+              <Path Data="{StaticResource LogoMark}" Fill="{StaticResource DbSignTextBrush}" />
+            </Canvas>
+          </Viewbox>
+          <TextBlock Classes="subtitle" Text="DataBridge" VerticalAlignment="Center"
+                     Foreground="{StaticResource DbRailTextBrush}" />
+        </StackPanel>
+
+        <ListBox Classes="nav"
+                 ItemsSource="{Binding NavigationItems}"
+                 SelectedItem="{Binding SelectedNavigationItem}"
+                 AutomationProperties.Name="Navigation">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:NavigationItem">
+              <TextBlock Text="{Binding Title}" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <Panel>
+      <ContentControl Content="{Binding CurrentPage}" />
+
+      <!-- Startup failed: the app cannot show pages without its local data. -->
+      <Border Classes="callout danger" Margin="24" VerticalAlignment="Top" MaxWidth="720"
+              HorizontalAlignment="Left" IsVisible="{Binding StartupError, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <StackPanel Spacing="4">
+          <ContentControl Classes="signal blocked">
+            <TextBlock FontWeight="Bold" Text="DataBridge cannot start" />
+          </ContentControl>
+          <TextBlock Text="{Binding StartupError}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <TextBlock Classes="caption muted" Margin="24" Text="Opening local data…"
+                 IsVisible="{Binding !IsReady}" />
+    </Panel>
+
+  </DockPanel>
+
+</Window>

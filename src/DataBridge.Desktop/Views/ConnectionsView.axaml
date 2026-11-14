@@ -1,0 +1,237 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DataBridge.Desktop.ViewModels"
+             x:Class="DataBridge.Desktop.Views.ConnectionsView"
+             x:DataType="vm:ConnectionsViewModel">
+
+  <UserControl.Styles>
+    <!-- Form rows: label above the field, an error signal below it. -->
+    <Style Selector="StackPanel.field">
+      <Setter Property="Spacing" Value="4" />
+    </Style>
+    <Style Selector="StackPanel.field > Label">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel>
+
+    <!-- Toolbar: screen name, profile count, and the action that starts a new profile. -->
+    <Border Classes="toolbar" DockPanel.Dock="Top">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" VerticalAlignment="Center"
+                Content="New profile" Command="{Binding NewProfileCommand}"
+                HotKey="Ctrl+N" ToolTip.Tip="New connection profile (Ctrl+N)" />
+        <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+          <TextBlock Classes="title" Text="Connections" VerticalAlignment="Center" />
+          <TextBlock Classes="caption muted" Text="{Binding ProfileCountText}" VerticalAlignment="Center" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Status bar: what is happening, with progress and Cancel while an operation runs. -->
+    <Border Classes="statusbar" DockPanel.Dock="Bottom" MinHeight="32">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="16" IsVisible="{Binding IsBusy}">
+          <ProgressBar IsIndeterminate="True" Width="120" VerticalAlignment="Center" />
+          <Button Content="Cancel" Command="{Binding CancelBusyCommand}" />
+        </StackPanel>
+        <TextBlock Classes="caption" Text="{Binding StatusText}" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+
+    <Grid ColumnDefinitions="360,16,*" Margin="24">
+
+      <!-- Profile list -->
+      <Border Classes="panel" Grid.Column="0" Padding="0">
+        <DockPanel>
+          <TextBlock Classes="label" DockPanel.Dock="Top" Margin="16,16,16,8" Text="PROFILES" />
+          <Panel>
+            <ListBox ItemsSource="{Binding Profiles}"
+                     SelectedItem="{Binding SelectedProfile}"
+                     IsEnabled="{Binding IsIdle}"
+                     Background="Transparent"
+                     AutomationProperties.Name="Connection profiles">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:ConnectionProfileItem">
+                  <StackPanel Spacing="2" Margin="0,4">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding Name}" />
+                    <TextBlock Classes="caption muted" Text="{Binding Detail}" TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding Detail}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Classes="muted" Margin="16,0,16,16" TextWrapping="Wrap"
+                       IsVisible="{Binding !HasProfiles}"
+                       Text="No connection profiles yet. Fill in the form to save the first one." />
+          </Panel>
+        </DockPanel>
+      </Border>
+
+      <!-- Editor -->
+      <Border Classes="panel" Grid.Column="2" Padding="0">
+        <DockPanel>
+
+          <!-- Actions: primary bottom-right; delete opens a confirmation instead of acting. -->
+          <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource DbHairlineBrush}" BorderThickness="0,1,0,0" Padding="16">
+            <DockPanel>
+              <Button DockPanel.Dock="Left" Content="Delete…" Command="{Binding RequestDeleteCommand}"
+                      IsVisible="{Binding !Editor.IsNew}" />
+              <Button DockPanel.Dock="Right" Classes="accent" Content="Save profile" Command="{Binding SaveCommand}"
+                      IsDefault="True" ToolTip.Tip="Save (Enter)" />
+              <Panel />
+            </DockPanel>
+          </Border>
+
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <!-- The form fills the panel up to 640px and stays left-aligned beyond that. -->
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MaxWidth="640" />
+                <ColumnDefinition Width="0" />
+              </Grid.ColumnDefinitions>
+            <StackPanel Margin="16" Spacing="16">
+
+              <TextBlock Classes="title" Text="{Binding Editor.Title}" TextTrimming="CharacterEllipsis" />
+
+              <!-- Unexpected failure -->
+              <Border Classes="callout danger" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <ContentControl Classes="signal blocked">
+                  <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
+                </ContentControl>
+              </Border>
+
+              <!-- Password storage notices (FR-CON-009) and cleanup warnings -->
+              <Border Classes="callout" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <ContentControl Classes="signal warning">
+                  <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" />
+                </ContentControl>
+              </Border>
+
+              <!-- Delete confirmation: the destructive button lives inside its danger callout. -->
+              <Border Classes="callout danger" IsVisible="{Binding IsConfirmingDelete}">
+                <StackPanel Spacing="12">
+                  <ContentControl Classes="signal blocked">
+                    <TextBlock FontWeight="Bold" TextWrapping="Wrap"
+                               Text="{Binding SelectedProfile.Name, StringFormat='Delete the profile {0}?'}" />
+                  </ContentControl>
+                  <TextBlock TextWrapping="Wrap"
+                             Text="The profile and its saved password are removed from this computer. The databases are not touched." />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="danger" Content="Delete profile" Command="{Binding ConfirmDeleteCommand}" />
+                    <Button Content="Keep profile" Command="{Binding CancelDeleteCommand}" HotKey="Escape" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <Border Classes="callout danger" IsVisible="{Binding Editor.GeneralError, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <ContentControl Classes="signal blocked">
+                  <TextBlock Text="{Binding Editor.GeneralError}" TextWrapping="Wrap" />
+                </ContentControl>
+              </Border>
+
+              <StackPanel Classes="field">
+                <Label Content="_Profile name" Target="NameBox" />
+                <TextBox x:Name="NameBox" Text="{Binding Editor.Name}" MaxLength="128" />
+                <ContentControl Classes="signal blocked" IsVisible="{Binding Editor.NameError, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <TextBlock Text="{Binding Editor.NameError}" TextWrapping="Wrap" />
+                </ContentControl>
+              </StackPanel>
+
+              <Grid ColumnDefinitions="*,16,*">
+                <StackPanel Classes="field" Grid.Column="0">
+                  <Label Content="_Server" Target="ServerBox" />
+                  <TextBox x:Name="ServerBox" Classes="code" Text="{Binding Editor.Server}" MaxLength="256"
+                           PlaceholderText="host, host\instance or host,port" />
+                  <ContentControl Classes="signal blocked" IsVisible="{Binding Editor.ServerError, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding Editor.ServerError}" TextWrapping="Wrap" />
+                  </ContentControl>
+                </StackPanel>
+                <StackPanel Classes="field" Grid.Column="2">
+                  <Label Content="_Database" Target="DatabaseBox" />
+                  <TextBox x:Name="DatabaseBox" Classes="code" Text="{Binding Editor.DatabaseName}" MaxLength="128" />
+                  <ContentControl Classes="signal blocked" IsVisible="{Binding Editor.DatabaseNameError, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding Editor.DatabaseNameError}" TextWrapping="Wrap" />
+                  </ContentControl>
+                </StackPanel>
+              </Grid>
+
+              <StackPanel Classes="field">
+                <Label Content="_Authentication" Target="AuthenticationBox" />
+                <ComboBox x:Name="AuthenticationBox" MinWidth="280"
+                          ItemsSource="{x:Static vm:AuthenticationOption.All}"
+                          SelectedItem="{Binding Editor.Authentication}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AuthenticationOption">
+                      <TextBlock Text="{Binding Label}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </StackPanel>
+
+              <Grid ColumnDefinitions="*,16,*" IsVisible="{Binding Editor.UsesSqlAuthentication}">
+                <StackPanel Classes="field" Grid.Column="0">
+                  <Label Content="_User name" Target="UserNameBox" />
+                  <TextBox x:Name="UserNameBox" Text="{Binding Editor.UserName}" MaxLength="128" />
+                  <ContentControl Classes="signal blocked" IsVisible="{Binding Editor.UserNameError, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding Editor.UserNameError}" TextWrapping="Wrap" />
+                  </ContentControl>
+                </StackPanel>
+                <StackPanel Classes="field" Grid.Column="2">
+                  <Label Content="Pass_word" Target="PasswordBox" />
+                  <TextBox x:Name="PasswordBox" Text="{Binding Editor.Password}" PasswordChar="●" />
+                  <TextBlock Classes="caption muted" Text="{Binding Editor.PasswordHint}" TextWrapping="Wrap" />
+                </StackPanel>
+              </Grid>
+
+              <TextBlock Classes="label" Margin="0,8,0,0" Text="CONNECTION" />
+
+              <StackPanel Spacing="8">
+                <CheckBox Content="_Encrypt the connection" IsChecked="{Binding Editor.Encrypt}" />
+                <Border Classes="callout" IsVisible="{Binding Editor.IsUnencrypted}">
+                  <ContentControl Classes="signal warning">
+                    <TextBlock TextWrapping="Wrap"
+                               Text="The connection is not encrypted: passwords and data cross the network in clear text." />
+                  </ContentControl>
+                </Border>
+                <CheckBox Content="_Trust the server certificate without validating it"
+                          IsChecked="{Binding Editor.TrustServerCertificate}" />
+                <Border Classes="callout" IsVisible="{Binding Editor.TrustServerCertificate}">
+                  <ContentControl Classes="signal warning">
+                    <TextBlock TextWrapping="Wrap"
+                               Text="Certificate validation is off: the server's identity is not verified. Use only for servers you control." />
+                  </ContentControl>
+                </Border>
+              </StackPanel>
+
+              <Grid ColumnDefinitions="*,16,*">
+                <StackPanel Classes="field" Grid.Column="0">
+                  <Label Content="Connection _timeout (seconds)" Target="TimeoutBox" />
+                  <NumericUpDown x:Name="TimeoutBox" Value="{Binding Editor.ConnectTimeoutSeconds}"
+                                 Minimum="1" Maximum="600" Increment="5" FormatString="0" />
+                  <ContentControl Classes="signal blocked" IsVisible="{Binding Editor.ConnectTimeoutSecondsError, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding Editor.ConnectTimeoutSecondsError}" TextWrapping="Wrap" />
+                  </ContentControl>
+                </StackPanel>
+                <StackPanel Classes="field" Grid.Column="2">
+                  <Label Content="Applicatio_n name (optional)" Target="ApplicationNameBox" />
+                  <TextBox x:Name="ApplicationNameBox" Text="{Binding Editor.ApplicationName}" MaxLength="128" />
+                  <ContentControl Classes="signal blocked" IsVisible="{Binding Editor.ApplicationNameError, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding Editor.ApplicationNameError}" TextWrapping="Wrap" />
+                  </ContentControl>
+                </StackPanel>
+              </Grid>
+
+            </StackPanel>
+            </Grid>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+
+    </Grid>
+  </DockPanel>
+
+</UserControl>
