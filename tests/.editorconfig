@@ -1,3 +1,9 @@
 [*.cs]
 # Test names use underscores to read as sentences: Method_condition_expected_result.
 dotnet_diagnostic.CA1707.severity = none
+
+# Tests call loggers directly, with ad-hoc and deliberately dynamic templates, to exercise the logging
+# pipeline. The LoggerMessage performance and template rules apply to production code only.
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none
+dotnet_diagnostic.CA2254.severity = none

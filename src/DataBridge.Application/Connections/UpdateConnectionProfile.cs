@@ -2,6 +2,7 @@ using DataBridge.Application.Abstractions;
 using DataBridge.Core.Connections;
 using DataBridge.Shared.Errors;
 using DataBridge.Shared.Results;
+using Microsoft.Extensions.Logging;
 
 namespace DataBridge.Application.Connections;
 
@@ -16,9 +17,29 @@ namespace DataBridge.Application.Connections;
 public sealed class UpdateConnectionProfile(
     IConnectionProfileRepository repository,
     ProfileSecretStore secrets,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ILogger<UpdateConnectionProfile> logger)
 {
     public async Task<Result<ConnectionProfileSaved>> ExecuteAsync(
+        Guid profileId,
+        ConnectionProfileInput input,
+        CancellationToken cancellationToken)
+    {
+        var result = await SaveAsync(profileId, input, cancellationToken);
+        if (result.IsSuccess)
+        {
+            ConnectionProfileLog.ProfileUpdated(logger, profileId, result.Value.SecretStorage.Kind);
+        }
+        else if (logger.IsEnabled(LogLevel.Information))
+        {
+            var errorCodes = string.Join(", ", result.Errors.Select(error => error.Code));
+            ConnectionProfileLog.ProfileRejected(logger, profileId, errorCodes);
+        }
+
+        return result;
+    }
+
+    private async Task<Result<ConnectionProfileSaved>> SaveAsync(
         Guid profileId,
         ConnectionProfileInput input,
         CancellationToken cancellationToken)

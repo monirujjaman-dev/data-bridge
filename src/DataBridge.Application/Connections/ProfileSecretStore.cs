@@ -1,4 +1,5 @@
 using DataBridge.Application.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace DataBridge.Application.Connections;
 
@@ -25,7 +26,10 @@ public sealed record PendingSecret(
 /// <see cref="CommitAsync"/> deletes the old entry, and if the row could not be written,
 /// <see cref="UndoAsync"/> deletes the new one.
 /// </remarks>
-public sealed class ProfileSecretStore(ICredentialStore credentialStore, SessionSecretCache sessionSecrets)
+public sealed class ProfileSecretStore(
+    ICredentialStore credentialStore,
+    SessionSecretCache sessionSecrets,
+    ILogger<ProfileSecretStore> logger)
 {
     /// <summary>The prefix of every credential store entry DataBridge creates.</summary>
     public const string ReferencePrefix = "DataBridge/connection-profile/";
@@ -54,6 +58,7 @@ public sealed class ProfileSecretStore(ICredentialStore credentialStore, Session
         {
             var previous = sessionSecrets.Find(profileId);
             sessionSecrets.Set(profileId, password);
+            ConnectionProfileLog.PasswordKeptForSession(logger, profileId, status.UnavailableReason!);
             return new PendingSecret(profileId, null, SecretStorage.SessionOnly(status.UnavailableReason!), previous);
         }
 
@@ -125,6 +130,7 @@ public sealed class ProfileSecretStore(ICredentialStore credentialStore, Session
             var status = await credentialStore.GetStatusAsync(CancellationToken.None);
             if (!status.IsAvailable)
             {
+                ConnectionProfileLog.PasswordNotRemoved(logger, null, reference, status.UnavailableReason!);
                 return NotRemovedWarning(reference, status.UnavailableReason!);
             }
 
@@ -132,9 +138,10 @@ public sealed class ProfileSecretStore(ICredentialStore credentialStore, Session
             return null;
         }
 #pragma warning disable CA1031 // The profile change is already saved; a cleanup failure becomes a warning.
-        catch (Exception)
+        catch (Exception exception)
 #pragma warning restore CA1031
         {
+            ConnectionProfileLog.PasswordNotRemoved(logger, exception, reference, "the credential store reported an error");
             return NotRemovedWarning(reference, "The OS credential store reported an error.");
         }
     }
