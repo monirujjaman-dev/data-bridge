@@ -14,8 +14,8 @@ open decision it must close (`requirements.md` §10,
 
 ### Current status (2026-11-14)
 
-Phase 1 is implemented; its acceptance closes with a green CI run of
-the Desktop shell pull request on all three operating systems. Done:
+Phase 1 is complete. Acceptance was confirmed by a green CI run on all
+three operating systems (pull request #4, 210 tests, none skipped). Done:
 connection profile domain model
 (`Core/Connections`), profile use cases and the repository and
 credential-store ports (`Application/Connections`,
