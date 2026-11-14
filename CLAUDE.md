@@ -4,8 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current repository state
 
-Phases 0 and 1 are implemented; Phase 1 closes when its pull request
-passes CI on all three operating systems. Connection profiles work end
+Phases 0 and 1 are complete. Connection profiles work end
 to end: Core model, Application use cases and ports, SQLite repository
 and migrations, OS credential stores, redacting logging, and the
 Desktop shell (Generic Host, DI, MVVM, navigation rail, Connections
