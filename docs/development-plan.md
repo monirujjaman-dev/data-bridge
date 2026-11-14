@@ -14,16 +14,19 @@ open decision it must close (`requirements.md` §10,
 
 ### Current status (2026-11-15)
 
-Phase 3 is in progress. Decided: object scope beyond §6.2 (ADR-0012)
-and no DacFx for schema reading (ADR-0013). Done: the schema model and
+Phase 3 is complete; Phase 4 (data comparison) is next. Decided: object
+scope beyond §6.2 (ADR-0012) and no DacFx for schema reading
+(ADR-0013). Done: the schema model and
 object identity (`Core/Schema`), the schema comparer with property-level
 differences (`Core/Comparison`), the `ISchemaReader` port and
 `CompareSchemas` use case (`Application`), the SQL Server catalog reader
 and T-SQL definition normalizer (`Infrastructure/Providers/SqlServer/Schema`),
 integration tests for every supported object kind, unsupported and
 unreadable objects, partial visibility and read-only behavior, and the
-Schema comparison screen. Acceptance still needs a green CI run on all
-three operating systems and the screen driven against real databases.
+Schema comparison screen. Acceptance was confirmed by a green CI run on
+all three operating systems (pull request #8: 356 tests on Linux with
+none skipped; Windows and macOS skip the 19 tests that need a SQL Server
+container) and by driving the screen against two real databases.
 Comparison sessions are not persisted yet (history is Phase 7).
 
 Phase 2 was merged in pull request #6. Decided: SQL Server 2017 and later only, Azure
@@ -327,7 +330,7 @@ Covers: NFR-PER-001, NFR-PORT-001, NFR-TEST-002, AC-13.
 
 ## 13. Revision history
 
--   **Revision 3 (2026-11-15):** Phase 3 status.
+-   **Revision 3 (2026-11-15):** Phase 3 complete.
 -   **Revision 2 (2026-11-14):** added current status, requirement
     coverage and decisions to close per phase, three-OS CI, credential
     adapters per OS, collation-safe keys, duplicate-key detection,
