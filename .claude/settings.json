@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(dotnet --info)",
+      "Bash(dotnet --list-sdks)",
+      "Bash(dotnet restore *)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet test *)",
+      "Bash(dotnet format *)",
+      "Bash(dotnet list *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(dotnet add * package *)",
+      "Bash(dotnet publish *)",
+      "Bash(sqlcmd *)",
+      "Bash(docker *)"
+    ],
+    "deny": [
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*.p12)",
+      "Read(./**/secrets.json)",
+      "Read(./**/*.local.json)"
+    ]
+  }
+}

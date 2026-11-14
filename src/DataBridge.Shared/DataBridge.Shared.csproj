@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Generic result, error and diagnostic primitives only. References the base class library only. -->
+  <PropertyGroup>
+    <RootNamespace>DataBridge.Shared</RootNamespace>
+  </PropertyGroup>
+
+</Project>

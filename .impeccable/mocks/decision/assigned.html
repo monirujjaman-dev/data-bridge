@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>DataBridge · Wayfinding</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font:13px/1.45 "Atkinson Hyperlegible Next",sans-serif;background:#F4F5F2;color:#1E2124;display:grid;grid-template-columns:200px 1fr;grid-template-rows:1fr 32px}
+nav{background:#1E2124;color:#C9CCC6;padding:16px 0;grid-row:1/3}
+nav b{display:block;color:#fff;font-size:15px;padding:0 16px 24px;letter-spacing:.02em}
+nav a{display:block;padding:8px 16px;color:inherit;text-decoration:none}
+nav a.on{background:#2E3236;color:#fff;box-shadow:inset 3px 0 #FFCC00}
+main{display:grid;grid-template-rows:112px 40px 1fr;min-width:0}
+.sign{background:#FFCC00;display:grid;grid-template-columns:1fr 96px 1fr;align-items:center;padding:0 32px;color:#1E2124}
+.sign small{display:block;font-size:12px;font-weight:700;letter-spacing:.12em}
+.sign strong{display:block;font-size:28px;font-weight:800;line-height:1.1}
+.sign span{font-size:15px;font-weight:600}
+.arrow{font-size:56px;font-weight:800;text-align:center}
+.target{border-left:8px solid #1E2124;padding-left:16px}
+.bar{display:flex;gap:24px;align-items:center;padding:0 24px;background:#fff;border-bottom:1px solid #DADDD6;font-size:13px}
+.bar .tab{padding:10px 0;font-weight:600}.bar .tab.on{box-shadow:inset 0 -3px #0F6CBD}
+.bar .ro{margin-left:auto;font-size:12px;font-weight:700;letter-spacing:.08em;color:#1F7A4D}
+.work{display:grid;grid-template-columns:288px 1fr 400px;min-height:0}
+.tree{background:#fff;border-right:1px solid #DADDD6;padding:16px}
+h3{font-size:12px;font-weight:700;letter-spacing:.1em;color:#5B6158;margin-bottom:8px}
+.row{display:grid;grid-template-columns:1fr 32px 64px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #EEF0EB}
+.mag{height:8px;background:#1E2124}
+.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+table{width:100%;border-collapse:collapse;background:#fff}
+.grid{padding:16px;overflow:hidden}
+th{text-align:left;font-size:12px;letter-spacing:.08em;color:#5B6158;padding:8px;border-bottom:2px solid #1E2124}
+td{padding:8px;border-bottom:1px solid #EEF0EB}
+tr.sel td{background:#E3EEF9}
+.st{font-weight:700}.add{color:#1F7A4D}.chg{color:#2B5FB4}.del{color:#B3261E}
+.side{background:#fff;border-left:1px solid #DADDD6;padding:16px;display:grid;grid-template-rows:auto 1fr auto;gap:16px}
+pre{font:12px/1.6 "JetBrains Mono",monospace;background:#F4F5F2;padding:12px;white-space:pre-wrap}
+.risk{border:2px solid #B3261E;padding:12px}
+.risk b{color:#B3261E}
+button{font:600 13px inherit;font-family:inherit;padding:8px 16px;border:1px solid #1E2124;background:#fff}
+button.pri{background:#0F6CBD;border-color:#0F6CBD;color:#fff}
+footer{display:flex;align-items:center;gap:16px;padding:0 16px;background:#fff;border-top:1px solid #DADDD6;font-size:12px}
+.prog{width:240px;height:6px;background:#DADDD6}.prog i{display:block;width:72%;height:100%;background:#1E2124}
+</style></head><body>
+<nav><b>DataBridge</b><a>Dashboard</a><a>Connections</a><a>New comparison</a><a class="on">Schema comparison</a><a>Data comparison</a><a>Synchronization</a><a>Execution</a><a>History</a><a>Settings</a></nav>
+<main>
+<div class="sign">
+ <div><small>SOURCE · READ ONLY</small><strong>Sales</strong><span>sql-prod-01.corp.local · SQL Server 2022</span></div>
+ <div class="arrow">→</div>
+ <div class="target"><small>TARGET · WILL BE CHANGED</small><strong>Sales_QA</strong><span>sql-test-02.corp.local · SQL Server 2019</span></div>
+</div>
+<div class="bar"><span class="tab on">Schema</span><span class="tab">Data</span><span>Compared 14:02 UTC · 312 objects</span><span class="ro">● COMPARISON NEVER WRITES</span></div>
+<div class="work">
+ <div class="tree"><h3>OBJECTS WITH DIFFERENCES</h3>
+  <div class="row"><span>Tables</span><span class="n">18</span><i class="mag" style="width:64px"></i></div>
+  <div class="row"><span>Indexes</span><span class="n">11</span><i class="mag" style="width:40px"></i></div>
+  <div class="row"><span>Foreign keys</span><span class="n">4</span><i class="mag" style="width:16px"></i></div>
+  <div class="row"><span>Views</span><span class="n">3</span><i class="mag" style="width:12px"></i></div>
+  <div class="row"><span>Procedures</span><span class="n">7</span><i class="mag" style="width:24px"></i></div>
+  <div class="row"><span>Unsupported</span><span class="n">2</span><i class="mag" style="width:8px;background:#B3261E"></i></div>
+ </div>
+ <div class="grid"><table>
+  <tr><th>OBJECT</th><th>TYPE</th><th>STATE</th><th>DETAIL</th></tr>
+  <tr class="sel"><td>dbo.Orders</td><td>Table</td><td class="st chg">◆ Changed</td><td>ShippedAtUtc datetime2(3) → datetime2(7)</td></tr>
+  <tr><td>dbo.OrderLines</td><td>Table</td><td class="st chg">◆ Changed</td><td>+ column DiscountRate decimal(5,4) NULL</td></tr>
+  <tr><td>dbo.IX_Orders_Customer</td><td>Index</td><td class="st add">+ Only in source</td><td>(CustomerId, CreatedAtUtc DESC) INCLUDE (Total)</td></tr>
+  <tr><td>sales.Promotions</td><td>Table</td><td class="st add">+ Only in source</td><td>6 columns · PK PromotionId</td></tr>
+  <tr><td>dbo.LegacyInvoices</td><td>Table</td><td class="st del">− Only in target</td><td>Drop is off by default</td></tr>
+  <tr><td>dbo.usp_CloseMonth</td><td>Procedure</td><td class="st chg">◆ Changed</td><td>Body differs · 14 lines</td></tr>
+  <tr><td>dbo.FK_Lines_Orders</td><td>Foreign key</td><td class="st chg">◆ Changed</td><td>ON DELETE NO ACTION → CASCADE</td></tr>
+  <tr><td>audit.ChangeLog</td><td>Table</td><td class="st del">⚠ Unsupported</td><td>Ledger table · reported, not compared</td></tr>
+ </table></div>
+ <div class="side"><h3>SQL PREVIEW · dbo.Orders</h3>
+  <pre>ALTER TABLE [dbo].[Orders]
+  ALTER COLUMN [ShippedAtUtc]
+  datetime2(7) NULL;</pre>
+  <div><div class="risk"><b>⚠ 1 destructive operation excluded</b><br>DROP TABLE [dbo].[LegacyInvoices] needs explicit opt-in and plan approval.</div><br><button class="pri">Build sync plan</button> <button>Export report</button></div>
+ </div>
+</div></main>
+<footer><span>Reading target metadata</span><span class="prog"><i></i></span><span>226 / 312 objects</span><button>Cancel</button><span style="margin-left:auto">Snapshot isolation: source yes · target no — results may reflect concurrent changes</span></footer>
+</body></html>

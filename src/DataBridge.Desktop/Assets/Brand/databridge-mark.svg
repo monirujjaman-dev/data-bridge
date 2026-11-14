@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="t">
+  <title id="t">DataBridge</title>
+  <!-- Tile-less mark: inherits text colour. Use sign yellow on the anthracite rail, anthracite on yellow. -->
+  <path fill="currentColor" d="M10,27 H32 L22,17 H33 L48,32 L33,47 H22 L32,37 H10 Z M51,14 H57 V50 H51 Z"/>
+</svg>

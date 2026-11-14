@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- BenchmarkDotNet measurements, run on demand in Release. Not part of the test run. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DataBridge.Core/DataBridge.Core.csproj" />
+  </ItemGroup>
+
+</Project>

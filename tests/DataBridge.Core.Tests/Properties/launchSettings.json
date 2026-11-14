@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DataBridge.Core.Tests": {
+      "commandName": "Project",
+      "commandLineArgs": "--ignore-exit-code 8"
+    }
+  }
+}

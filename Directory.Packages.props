@@ -1,0 +1,24 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <!-- Every version is set here; projects may not override one with VersionOverride. -->
+    <CentralPackageVersionOverrideEnabled>false</CentralPackageVersionOverrideEnabled>
+  </PropertyGroup>
+
+  <!-- Desktop -->
+  <ItemGroup>
+    <PackageVersion Include="Avalonia" Version="12.1.6" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.1.6" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.6" />
+    <PackageVersion Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
+  </ItemGroup>
+
+  <!-- Tests and benchmarks -->
+  <ItemGroup>
+    <PackageVersion Include="xunit.v3" Version="4.0.3" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+  </ItemGroup>
+
+</Project>

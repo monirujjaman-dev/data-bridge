@@ -55,3 +55,11 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# IDE state
+.vs/
+.idea/
+*.user

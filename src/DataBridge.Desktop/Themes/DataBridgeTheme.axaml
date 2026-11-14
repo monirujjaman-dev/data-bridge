@@ -1,0 +1,67 @@
+<!--
+  DataBridge application theme entry point.
+  Usage in App.axaml:
+    <Application.Styles>
+      <StyleInclude Source="avares://DataBridge.Desktop/Themes/DataBridgeTheme.axaml" />
+    </Application.Styles>
+  and RequestedThemeVariant="Default" so the OS light/dark setting wins.
+  The Fluent palettes below re-tint every stock control from the DataBridge tokens.
+  Accent is deliberately not set: FluentTheme then uses the OS accent colour.
+  Requires packages: Avalonia.Themes.Fluent, Avalonia.Controls.DataGrid.
+-->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <FluentTheme>
+    <FluentTheme.Palettes>
+      <ColorPaletteResources x:Key="Light"
+                             RegionColor="#F4F5F2"
+                             AltHigh="#FFFFFF"
+                             BaseHigh="#1E2124"
+                             BaseMediumHigh="#3B403C"
+                             BaseMedium="#565C58"
+                             BaseMediumLow="#7B817C"
+                             BaseLow="#DADDD6"
+                             ChromeLow="#F7F8F5"
+                             ChromeMediumLow="#EFF0EC"
+                             ChromeMedium="#E5E7E2"
+                             ChromeHigh="#CDD0C9"
+                             ChromeAltLow="#1E2124"
+                             ChromeGray="#646A66"
+                             ListLow="#E3E6E0"
+                             ListMedium="#D6DAD3"
+                             ErrorText="#B3261E" />
+      <ColorPaletteResources x:Key="Dark"
+                             RegionColor="#1E2124"
+                             AltHigh="#191C1E"
+                             BaseHigh="#EEEEEA"
+                             BaseMediumHigh="#CDD1CC"
+                             BaseMedium="#A9AEAA"
+                             BaseMediumLow="#7E868B"
+                             BaseLow="#3A3F43"
+                             ChromeLow="#222528"
+                             ChromeMediumLow="#272B2E"
+                             ChromeMedium="#2E3236"
+                             ChromeHigh="#4A5258"
+                             ChromeAltLow="#EEEEEA"
+                             ChromeGray="#8E948F"
+                             ListLow="#30363A"
+                             ListMedium="#3A4146"
+                             ErrorText="#F2766B" />
+    </FluentTheme.Palettes>
+  </FluentTheme>
+
+  <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://DataBridge.Desktop/Themes/Tokens.axaml" />
+        <ResourceInclude Source="avares://DataBridge.Desktop/Themes/Icons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Styles.Resources>
+
+  <StyleInclude Source="avares://DataBridge.Desktop/Themes/Controls.axaml" />
+
+</Styles>

@@ -1,0 +1,137 @@
+<!--
+  DataBridge design tokens: "Wayfinding Signage".
+  Like an airport sign, every screen says where data comes from and where it goes.
+
+  Sign yellow is reserved for identity and direction: the route sign (source to
+  target), the selected navigation item and the app mark. Never for state, never
+  as a general accent. Focus, selection and primary buttons use the OS accent
+  colour through FluentTheme.
+
+  State colours follow signage convention and what a sync would do to the target:
+    Add     (green)  created on target / cleared / completed
+    Info    (blue)   changed / informational
+    Caution (orange) awaiting approval / needs attention / unstable snapshot
+    Danger  (red)    destructive / blocked / failed
+    Excluded (grey)  not part of the plan
+  Every state also has a distinct glyph shape (Icons.axaml); never colour alone.
+  See DESIGN.md for usage rules.
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <ResourceDictionary.ThemeDictionaries>
+
+    <ResourceDictionary x:Key="Light">
+      <Color x:Key="DbGroundColor">#F4F5F2</Color>
+      <Color x:Key="DbPanelColor">#FFFFFF</Color>
+      <Color x:Key="DbSunkenColor">#EDEEEA</Color>
+      <Color x:Key="DbRailColor">#1E2124</Color>
+      <Color x:Key="DbRailSelectedColor">#2E3236</Color>
+      <Color x:Key="DbHairlineColor">#DADDD6</Color>
+      <Color x:Key="DbRuleColor">#1E2124</Color>
+      <Color x:Key="DbTextColor">#1E2124</Color>
+      <Color x:Key="DbTextMutedColor">#565C58</Color>
+      <Color x:Key="DbAddColor">#1F7A4D</Color>
+      <Color x:Key="DbInfoColor">#2B5FB4</Color>
+      <Color x:Key="DbCautionColor">#A34A00</Color>
+      <Color x:Key="DbDangerColor">#B3261E</Color>
+      <Color x:Key="DbExcludedColor">#5A605C</Color>
+      <Color x:Key="DbDangerSurfaceColor">#FBEAE8</Color>
+      <Color x:Key="DbCautionSurfaceColor">#FCEEDF</Color>
+      <Color x:Key="DbAddSurfaceColor">#E4F2EA</Color>
+      <Color x:Key="DbCodeColor">#1E2124</Color>
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Dark">
+      <Color x:Key="DbGroundColor">#1E2124</Color>
+      <Color x:Key="DbPanelColor">#272B2E</Color>
+      <Color x:Key="DbSunkenColor">#191C1E</Color>
+      <Color x:Key="DbRailColor">#17191B</Color>
+      <Color x:Key="DbRailSelectedColor">#272B2E</Color>
+      <Color x:Key="DbHairlineColor">#3A3F43</Color>
+      <Color x:Key="DbRuleColor">#EEEEEA</Color>
+      <Color x:Key="DbTextColor">#EEEEEA</Color>
+      <Color x:Key="DbTextMutedColor">#A9AEAA</Color>
+      <Color x:Key="DbAddColor">#5BC07F</Color>
+      <Color x:Key="DbInfoColor">#7EA6F2</Color>
+      <Color x:Key="DbCautionColor">#F59E4A</Color>
+      <Color x:Key="DbDangerColor">#F2766B</Color>
+      <Color x:Key="DbExcludedColor">#989E99</Color>
+      <Color x:Key="DbDangerSurfaceColor">#3A2826</Color>
+      <Color x:Key="DbCautionSurfaceColor">#3A3024</Color>
+      <Color x:Key="DbAddSurfaceColor">#233429</Color>
+      <Color x:Key="DbCodeColor">#DCDDD8</Color>
+    </ResourceDictionary>
+
+  </ResourceDictionary.ThemeDictionaries>
+
+  <!-- The sign is the same in both themes: signage does not invert at night. -->
+  <Color x:Key="DbSignColor">#FFCC00</Color>
+  <Color x:Key="DbSignTextColor">#1E2124</Color>
+  <Color x:Key="DbSignTextMutedColor">#4A4220</Color>
+  <!-- Alert sign (same database on both sides): static red so white lettering stays >= 6.5:1 in both themes. -->
+  <Color x:Key="DbSignAlertColor">#B3261E</Color>
+  <Color x:Key="DbRailTextColor">#FFFFFF</Color>
+  <Color x:Key="DbRailTextMutedColor">#B9BDB8</Color>
+
+  <SolidColorBrush x:Key="DbSignBrush" Color="{StaticResource DbSignColor}" />
+  <SolidColorBrush x:Key="DbSignTextBrush" Color="{StaticResource DbSignTextColor}" />
+  <SolidColorBrush x:Key="DbSignTextMutedBrush" Color="{StaticResource DbSignTextMutedColor}" />
+  <SolidColorBrush x:Key="DbSignAlertBrush" Color="{StaticResource DbSignAlertColor}" />
+  <SolidColorBrush x:Key="DbRailTextBrush" Color="{StaticResource DbRailTextColor}" />
+  <SolidColorBrush x:Key="DbRailTextMutedBrush" Color="{StaticResource DbRailTextMutedColor}" />
+
+  <SolidColorBrush x:Key="DbGroundBrush" Color="{DynamicResource DbGroundColor}" />
+  <SolidColorBrush x:Key="DbPanelBrush" Color="{DynamicResource DbPanelColor}" />
+  <SolidColorBrush x:Key="DbSunkenBrush" Color="{DynamicResource DbSunkenColor}" />
+  <SolidColorBrush x:Key="DbRailBrush" Color="{DynamicResource DbRailColor}" />
+  <SolidColorBrush x:Key="DbRailSelectedBrush" Color="{DynamicResource DbRailSelectedColor}" />
+  <SolidColorBrush x:Key="DbHairlineBrush" Color="{DynamicResource DbHairlineColor}" />
+  <SolidColorBrush x:Key="DbRuleBrush" Color="{DynamicResource DbRuleColor}" />
+  <SolidColorBrush x:Key="DbTextBrush" Color="{DynamicResource DbTextColor}" />
+  <SolidColorBrush x:Key="DbTextMutedBrush" Color="{DynamicResource DbTextMutedColor}" />
+  <SolidColorBrush x:Key="DbAddBrush" Color="{DynamicResource DbAddColor}" />
+  <SolidColorBrush x:Key="DbInfoBrush" Color="{DynamicResource DbInfoColor}" />
+  <SolidColorBrush x:Key="DbCautionBrush" Color="{DynamicResource DbCautionColor}" />
+  <SolidColorBrush x:Key="DbDangerBrush" Color="{DynamicResource DbDangerColor}" />
+  <SolidColorBrush x:Key="DbExcludedBrush" Color="{DynamicResource DbExcludedColor}" />
+  <SolidColorBrush x:Key="DbDangerSurfaceBrush" Color="{DynamicResource DbDangerSurfaceColor}" />
+  <SolidColorBrush x:Key="DbCautionSurfaceBrush" Color="{DynamicResource DbCautionSurfaceColor}" />
+  <SolidColorBrush x:Key="DbAddSurfaceBrush" Color="{DynamicResource DbAddSurfaceColor}" />
+  <SolidColorBrush x:Key="DbCodeBrush" Color="{DynamicResource DbCodeColor}" />
+
+  <!-- Typography: one fixed scale (12 / 13 / 15 / 20 / 28). Nothing is set between steps. -->
+  <FontFamily x:Key="DbFontUi">avares://DataBridge.Desktop/Assets/Fonts#Atkinson Hyperlegible Next</FontFamily>
+  <FontFamily x:Key="DbFontCode">avares://DataBridge.Desktop/Assets/Fonts#JetBrains Mono</FontFamily>
+  <FontFamily x:Key="ContentControlThemeFontFamily">avares://DataBridge.Desktop/Assets/Fonts#Atkinson Hyperlegible Next</FontFamily>
+  <x:Double x:Key="DbFontSizeCaption">12</x:Double>
+  <x:Double x:Key="DbFontSizeBody">13</x:Double>
+  <x:Double x:Key="DbFontSizeSubtitle">15</x:Double>
+  <x:Double x:Key="DbFontSizeTitle">20</x:Double>
+  <x:Double x:Key="DbFontSizeDisplay">28</x:Double>
+  <x:Double x:Key="ControlContentThemeFontSize">13</x:Double>
+
+  <!-- Spacing: one 8px armature with a 4px half-step. -->
+  <x:Double x:Key="DbSpace1">4</x:Double>
+  <x:Double x:Key="DbSpace2">8</x:Double>
+  <x:Double x:Key="DbSpace3">16</x:Double>
+  <x:Double x:Key="DbSpace4">24</x:Double>
+  <x:Double x:Key="DbSpace5">32</x:Double>
+  <Thickness x:Key="DbPanelPadding">16</Thickness>
+  <Thickness x:Key="DbPagePadding">24</Thickness>
+  <Thickness x:Key="DbSignPadding">32,16</Thickness>
+
+  <!-- Geometry: signage panels are square-cornered. -->
+  <CornerRadius x:Key="ControlCornerRadius">2</CornerRadius>
+  <CornerRadius x:Key="OverlayCornerRadius">2</CornerRadius>
+  <x:Double x:Key="DbRowHeight">32</x:Double>
+  <x:Double x:Key="DbRailWidth">200</x:Double>
+  <x:Double x:Key="DbSignHeight">112</x:Double>
+
+  <!-- Grid selection: a pale accent tint, so state glyphs on a selected row keep their contrast. -->
+  <x:Double x:Key="DataGridRowSelectedBackgroundOpacity">0.16</x:Double>
+  <x:Double x:Key="DataGridRowSelectedHoveredBackgroundOpacity">0.24</x:Double>
+  <x:Double x:Key="DataGridRowSelectedUnfocusedBackgroundOpacity">0.16</x:Double>
+  <x:Double x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundOpacity">0.24</x:Double>
+
+</ResourceDictionary>

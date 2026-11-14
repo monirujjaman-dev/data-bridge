@@ -1,0 +1,36 @@
+<!--
+  DataBridge glyphs, authored on a 16 x 16 grid for PathIcon.
+  Every state has its own shape so state never depends on colour alone:
+    GlyphAdd       plus            only in source / will be created     (add)
+    GlyphChange    diamond         changed                              (info)
+    GlyphRemove    minus bar       only in target / would be dropped    (danger)
+    GlyphCleared   solid circle    completed, verified                  (add)
+    GlyphPending   ring            pending, queued                      (muted)
+    GlyphAwaiting  solid square    awaiting approval                    (caution)
+    GlyphBlocked   circle with bar blocked, failed, destructive         (danger)
+    GlyphExcluded  hollow square   not part of the plan                 (excluded)
+    GlyphWarning   triangle        unsupported object, unstable snapshot (caution)
+  GlyphSignArrow is the signage arrow used on the route sign.
+  The logo mark lives on a 64 x 64 grid; Assets/Brand/databridge-icon.svg is its source.
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <StreamGeometry x:Key="GlyphAdd">M7,3 H9 V7 H13 V9 H9 V13 H7 V9 H3 V7 H7 Z</StreamGeometry>
+  <StreamGeometry x:Key="GlyphChange">M8,2 L14,8 L8,14 L2,8 Z</StreamGeometry>
+  <StreamGeometry x:Key="GlyphRemove">M3,7 H13 V9 H3 Z</StreamGeometry>
+  <StreamGeometry x:Key="GlyphCleared">M8,2 A6,6 0 1 1 7.99,2 Z</StreamGeometry>
+  <StreamGeometry x:Key="GlyphPending">F0 M8,2 A6,6 0 1 1 7.99,2 Z M8,4.75 A3.25,3.25 0 1 0 8.01,4.75 Z</StreamGeometry>
+  <StreamGeometry x:Key="GlyphAwaiting">M3,3 H13 V13 H3 Z</StreamGeometry>
+  <StreamGeometry x:Key="GlyphBlocked">F0 M8,2 A6,6 0 1 1 7.99,2 Z M4.5,7 H11.5 V9 H4.5 Z</StreamGeometry>
+  <StreamGeometry x:Key="GlyphExcluded">F0 M3,3 H13 V13 H3 Z M5,5 V11 H11 V5 Z</StreamGeometry>
+  <StreamGeometry x:Key="GlyphWarning">F0 M8,1.5 L15,14 H1 Z M7.2,6 H8.8 V10 H7.2 Z M7.2,11 H8.8 V12.6 H7.2 Z</StreamGeometry>
+
+  <!-- Signage arrow: heavy shaft, 45-degree head. -->
+  <StreamGeometry x:Key="GlyphSignArrow">M1,6.5 H9.4 L5.6,2.7 H9.6 L14.9,8 L9.6,13.3 H5.6 L9.4,9.5 H1 Z</StreamGeometry>
+
+  <!-- Logo mark, 64 x 64: sign-yellow tile, signage arrow into a target bar. -->
+  <StreamGeometry x:Key="LogoTile">M14,0 H50 A14,14 0 0 1 64,14 V50 A14,14 0 0 1 50,64 H14 A14,14 0 0 1 0,50 V14 A14,14 0 0 1 14,0 Z</StreamGeometry>
+  <StreamGeometry x:Key="LogoMark">M10,27 H32 L22,17 H33 L48,32 L33,47 H22 L32,37 H10 Z M51,14 H57 V50 H51 Z</StreamGeometry>
+
+</ResourceDictionary>

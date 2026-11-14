@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>DataBridge · Standard</title>
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font:13px/1.45 "Segoe UI",system-ui,sans-serif;background:#F6F8FA;color:#1F2328;display:grid;grid-template-rows:48px 56px 1fr}
+.top{display:flex;align-items:center;gap:24px;padding:0 16px;background:#fff;border-bottom:1px solid #D0D7DE}
+.top b{font-size:15px}.top a{color:#57606A}
+.ids{display:flex;gap:16px;align-items:center;padding:0 16px;background:#fff;border-bottom:1px solid #D0D7DE}
+.ids div{border:1px solid #D0D7DE;border-radius:6px;padding:6px 12px}
+.ids small{color:#57606A;margin-right:6px}
+.ids button{margin-left:auto;background:#0969DA;color:#fff;border:0;border-radius:6px;padding:8px 16px;font:inherit;font-weight:600}
+.work{display:grid;grid-template-columns:280px 1fr 380px;min-height:0}
+.tree{background:#fff;border-right:1px solid #D0D7DE;padding:12px}
+.tree p{padding:6px 8px;border-radius:6px}.tree p.on{background:#DDF4FF}
+table{width:100%;border-collapse:collapse;background:#fff}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #D8DEE4}th{color:#57606A;font-weight:600}
+.sql{background:#fff;border-left:1px solid #D0D7DE;padding:12px}
+pre{font:12px/1.6 Consolas,monospace;background:#F6F8FA;padding:12px;border-radius:6px}
+.a{color:#1A7F37}.c{color:#9A6700}.d{color:#CF222E}
+</style></head><body>
+<div class="top"><b>DataBridge</b><a>Dashboard</a><a>Connections</a><a>Compare</a><a>Sync</a><a>History</a><a>Settings</a></div>
+<div class="ids"><div><small>Source</small>sql-prod-01 / Sales</div><span>→</span><div><small>Target</small>sql-test-02 / Sales_QA</div><button>Compare</button></div>
+<div class="work">
+<div class="tree"><p class="on">Tables (18)</p><p>Indexes (11)</p><p>Foreign keys (4)</p><p>Views (3)</p><p>Procedures (7)</p></div>
+<div><table><tr><th>Object</th><th>Type</th><th>Status</th></tr>
+<tr><td>dbo.Orders</td><td>Table</td><td class="c">Different</td></tr>
+<tr><td>dbo.OrderLines</td><td>Table</td><td class="c">Different</td></tr>
+<tr><td>sales.Promotions</td><td>Table</td><td class="a">Only in source</td></tr>
+<tr><td>dbo.LegacyInvoices</td><td>Table</td><td class="d">Only in target</td></tr>
+<tr><td>dbo.usp_CloseMonth</td><td>Procedure</td><td class="c">Different</td></tr></table></div>
+<div class="sql"><pre>ALTER TABLE [dbo].[Orders]
+  ALTER COLUMN [ShippedAtUtc]
+  datetime2(7) NULL;</pre></div>
+</div></body></html>
