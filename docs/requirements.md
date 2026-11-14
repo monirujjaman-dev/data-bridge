@@ -1,6 +1,6 @@
 # DataBridge --- Product Requirements
 
-**Version:** 1.0 baseline\
+**Version:** 1.0 baseline (revision 2, 2026-11-14)\
 **Status:** Approved\
 **Product type:** Cross-platform desktop application\
 **Initial provider:** Microsoft SQL Server
@@ -13,6 +13,18 @@ differences, create synchronization plans, review generated SQL, apply
 approved changes and verify the target.
 
 The application is local-first and does not require a hosted backend.
+
+### Terminology
+
+-   **Source / Target:** the two sides of a comparison, as the user
+    selected them.
+-   **Write target:** the database a synchronization plan modifies. For
+    Source → Target it is the Target; for Target → Source it is the
+    Source. Every "revalidate the target" rule in these documents means
+    the write target.
+-   **Destructive operation:** any operation that can remove objects,
+    columns or rows, or lose data (DROP, DELETE, narrowing or lossy
+    ALTER).
 
 ## 2. Goals
 
@@ -68,17 +80,18 @@ The application is local-first and does not require a hosted backend.
 
 ### 5.3 Plan synchronization
 
-1.  User chooses direction: Source → Target or Target → Source.
+1.  User chooses direction: Source → Target or Target → Source. The
+    application shows which database is the write target.
 2.  User selects differences to include.
 3.  Application creates a dependency-aware plan.
 4.  Application validates compatibility, permissions, dependencies and
-    target state.
+    write-target state.
 5.  Application classifies risk and displays generated SQL/operations.
-6.  User explicitly approves the plan.
+6.  User explicitly approves the plan, confirming the write target.
 
 ### 5.4 Execute and verify
 
-1.  Application revalidates target identity and plan freshness.
+1.  Application revalidates write-target identity and plan freshness.
 2.  Application executes approved operations with explicit transaction
     boundaries.
 3.  Application records operation-level outcomes.
@@ -102,14 +115,18 @@ The application is local-first and does not require a hosted backend.
 -   **FR-CON-006:** Save, edit, rename and delete connection profiles.
 -   **FR-CON-007:** Do not persist plaintext passwords in SQLite, JSON
     or logs.
--   **FR-CON-008:** Display the resolved server and database identity
-    before comparison and execution.
+-   **FR-CON-008:** Display the resolved server, database and server
+    version identity before comparison and execution.
+-   **FR-CON-009:** When OS-native secure storage is unavailable, do not
+    save the secret; prompt for it per session and tell the user why. No
+    plaintext or obfuscated fallback.
 
 ### 6.2 Schema comparison
 
 -   **FR-SCH-001:** Compare schemas and tables.
 -   **FR-SCH-002:** Compare columns, SQL types, length, precision,
-    scale, nullability and ordinal.
+    scale, nullability, collation, identity, computed definitions and
+    ordinal.
 -   **FR-SCH-003:** Compare primary keys and ordered key columns.
 -   **FR-SCH-004:** Compare foreign keys, referenced columns and
     referential actions.
@@ -118,10 +135,13 @@ The application is local-first and does not require a hosted backend.
 -   **FR-SCH-006:** Compare unique, check and default constraints.
 -   **FR-SCH-007:** Compare views, stored procedures, functions and
     triggers.
--   **FR-SCH-008:** Compare sequences and supported database objects.
+-   **FR-SCH-008:** Compare sequences. Further object types are
+    supported only once listed here (see §10).
 -   **FR-SCH-009:** Detect source-only, target-only, modified, equal and
     incompatible objects.
--   **FR-SCH-010:** Report unsupported or unreadable objects explicitly.
+-   **FR-SCH-010:** Report unsupported or unreadable objects explicitly,
+    including module definitions hidden by missing `VIEW DEFINITION`
+    permission or `WITH ENCRYPTION`.
 -   **FR-SCH-011:** Normalize metadata without corrupting SQL literals,
     comments or semantics.
 -   **FR-SCH-012:** Provide object/property-level difference details.
@@ -131,7 +151,9 @@ The application is local-first and does not require a hosted backend.
 -   **FR-DAT-001:** Compare selected tables.
 -   **FR-DAT-002:** Discover primary keys and unique constraints.
 -   **FR-DAT-003:** Allow user-selected unique matching keys when no
-    suitable key is discovered.
+    suitable key is discovered. Uniqueness of a user-selected key is
+    verified during comparison; duplicates stop row matching for that
+    table and are reported.
 -   **FR-DAT-004:** Support composite keys.
 -   **FR-DAT-005:** Detect source-only, target-only and modified rows.
 -   **FR-DAT-006:** Show changed columns for modified rows.
@@ -150,6 +172,13 @@ The application is local-first and does not require a hosted backend.
     presentation.
 -   **FR-DAT-014:** Define and communicate consistency/isolation
     behavior when databases are concurrently modified.
+-   **FR-DAT-015:** Match columns by name. Columns present on one side
+    only, or with types that cannot be compared safely, are reported and
+    excluded from row comparison rather than coerced.
+-   **FR-DAT-016:** The key order used to merge the two row streams must
+    be identical to the order in which each server returned the rows,
+    including for collation-sensitive string keys and when source and
+    target collations differ.
 
 ### 6.4 Synchronization planning
 
@@ -162,19 +191,23 @@ The application is local-first and does not require a hosted backend.
 -   **FR-PLN-005:** Build dependency-aware execution order.
 -   **FR-PLN-006:** Detect cycles and unsupported dependency cases.
 -   **FR-PLN-007:** Classify operation risk.
--   **FR-PLN-008:** Validate target identity, schema fingerprint,
+-   **FR-PLN-008:** Validate write-target identity, schema fingerprint,
     permissions and constraints.
 -   **FR-PLN-009:** Display generated SQL and operation details.
 -   **FR-PLN-010:** Require explicit approval for destructive
     operations.
 -   **FR-PLN-011:** Make approved plans immutable.
--   **FR-PLN-012:** Invalidate/rebuild plans when relevant target state
-    changes.
+-   **FR-PLN-012:** Invalidate/rebuild plans when relevant write-target
+    state changes.
+-   **FR-PLN-013:** Export the generated SQL script for review.
+-   **FR-PLN-014:** Warn about side effects the plan cannot control,
+    such as triggers on the write target that will fire during data
+    operations. Never disable constraints or triggers automatically.
 
 ### 6.5 Synchronization execution
 
 -   **FR-EXE-001:** Execute only approved plans.
--   **FR-EXE-002:** Revalidate target identity and plan freshness
+-   **FR-EXE-002:** Revalidate write-target identity and plan freshness
     immediately before execution.
 -   **FR-EXE-003:** Use parameterized DML and safely quoted identifiers.
 -   **FR-EXE-004:** Use explicit, documented transaction boundaries.
@@ -205,8 +238,16 @@ The application is local-first and does not require a hosted backend.
 -   **FR-UI-002:** Keep UI responsive during all database operations.
 -   **FR-UI-003:** Display progress and cancellation.
 -   **FR-UI-004:** Use virtualized grids and incremental loading.
--   **FR-UI-005:** Support light and dark themes.
--   **FR-UI-006:** Display source and target identity prominently.
+-   **FR-UI-005:** Support light and dark themes, following the OS
+    setting by default.
+-   **FR-UI-006:** Display source, target and write-target identity
+    prominently.
+-   **FR-UI-007:** Meet WCAG 2.2 AA contrast, visible focus and
+    keyboard operation in both themes; risk and difference states must
+    not rely on color alone.
+
+Visual design rules live in `DESIGN.md`; product context in
+`PRODUCT.md`.
 
 ## 7. Non-functional requirements
 
@@ -250,7 +291,7 @@ The application is local-first and does not require a hosted backend.
     executing them.
 -   AC-09: Require approval before execution and explicit opt-in for
     DROP/DELETE.
--   AC-10: Revalidate target state before execution.
+-   AC-10: Revalidate write-target state before execution.
 -   AC-11: Record partial outcomes and verify completed operations.
 -   AC-12: Cancel long-running comparisons and executions safely.
 -   AC-13: Run on Windows, Linux and macOS.
@@ -258,6 +299,8 @@ The application is local-first and does not require a hosted backend.
     results.
 -   AC-15: Integration tests cover constraints, identity columns, errors
     and interrupted execution.
+-   AC-16: Data comparison gives correct results for string keys under
+    case-insensitive and differing collations.
 
 ## 9. Release scope
 
@@ -271,3 +314,24 @@ cross-platform desktop deployment.
 
 Other database engines, automatic bidirectional conflict resolution,
 cloud services, scheduled synchronization and collaboration.
+
+## 10. Open product decisions
+
+These must be decided (and recorded here or in an ADR) before the phase
+noted; until then they are out of scope.
+
+| Decision | Needed by |
+|----------|-----------|
+| Supported SQL Server versions and editions, and whether Azure SQL Database / Managed Instance are supported | Phase 2 |
+| Microsoft Entra ID authentication (needed for Azure SQL) | Phase 2 |
+| Object types beyond §6.2: synonyms, user-defined types and table types, partition schemes/functions, temporal and memory-optimized tables, full-text objects, users/roles/permissions | Phase 3 |
+| Environment labels on profiles (e.g. Production) and whether they change approval requirements | Phase 5 |
+| How data operations are materialized in a plan without holding all rows (see architecture §16) | Phase 5 |
+
+## 11. Revision history
+
+-   **Revision 2 (2026-11-14):** added terminology (write target,
+    destructive operation); FR-CON-009, FR-DAT-015/016, FR-PLN-013/014,
+    FR-UI-007, AC-16; clarified FR-CON-008, FR-SCH-002/008/010,
+    FR-DAT-003; added open decisions.
+-   **Revision 1:** approved baseline.

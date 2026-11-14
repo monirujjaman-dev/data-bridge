@@ -9,7 +9,10 @@ paths:
 
 # Database correctness requirements
 
--   Schema identity includes schema name, object name and object type.
+-   Schema identity includes schema name, object name and object type,
+    plus the parent table/view for table children (columns, keys,
+    constraints, indexes) and DML triggers. Index names are unique only
+    per table.
 -   Compare ordered key columns, index key order, included columns,
     uniqueness, filters and relevant index options.
 -   Preserve identity seed/increment, computed expressions, defaults,

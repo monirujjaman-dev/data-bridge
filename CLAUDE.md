@@ -4,8 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current repository state
 
-The repository is pre-Phase 0: it holds only design docs, no solution or
-source yet. Read these before implementing; they are the source of truth:
+The repository is pre-Phase 0: there is no solution or project file
+yet. Besides the design docs it holds the visual design system, drafted
+ahead of Phase 1: `PRODUCT.md`, `DESIGN.md`, theme resources in
+`src/DataBridge.Desktop/Themes/` and brand/font assets in
+`src/DataBridge.Desktop/Assets/`. Phase 0 must place these inside the
+new Desktop project rather than recreate them. Read these before
+implementing; they are the source of truth:
 
 -   `docs/requirements.md`: product scope, user journeys, acceptance
     criteria, v1.0 vs deferred features.
@@ -17,8 +22,8 @@ source yet. Read these before implementing; they are the source of truth:
     Phase 8 release) with per-phase acceptance criteria. Work the
     current phase; don't build UI ahead of the use cases behind it.
 
-`docs/architecture.md` refers to `AGENTS.md`; in this repo that role is
-filled by this file.
+This file fills the `AGENTS.md` role (agent/contributor instructions).
+Terms such as *write target* are defined in `docs/requirements.md` §1.
 
 ## Commands
 
