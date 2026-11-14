@@ -29,8 +29,16 @@
   <!-- Signage arrow: heavy shaft, 45-degree head. -->
   <StreamGeometry x:Key="GlyphSignArrow">M1,6.5 H9.4 L5.6,2.7 H9.6 L14.9,8 L9.6,13.3 H5.6 L9.4,9.5 H1 Z</StreamGeometry>
 
-  <!-- Logo mark, 64 x 64: sign-yellow tile, signage arrow into a target bar. -->
+  <!--
+    Logo, 64 x 64: one database cylinder with an amber lightning bolt on a primary-navy tile.
+    Fills: cap #60A5FA; bands #2563EB (accent blue), #1D8FD0, #14B8A6 (sync teal); bolt #F59E0B (amber)
+    over a 3-wide navy keyline (LogoBolt stroked first, then filled).
+  -->
   <StreamGeometry x:Key="LogoTile">M14,0 H50 A14,14 0 0 1 64,14 V50 A14,14 0 0 1 50,64 H14 A14,14 0 0 1 0,50 V14 A14,14 0 0 1 14,0 Z</StreamGeometry>
-  <StreamGeometry x:Key="LogoMark">M10,27 H32 L22,17 H33 L48,32 L33,47 H22 L32,37 H10 Z M51,14 H57 V50 H51 Z</StreamGeometry>
+  <StreamGeometry x:Key="LogoBandTop">M14,15 A18,6 0 0 0 50,15 V25 A18,6 0 0 1 14,25 Z</StreamGeometry>
+  <StreamGeometry x:Key="LogoBandMiddle">M14,28 A18,6 0 0 0 50,28 V38 A18,6 0 0 1 14,38 Z</StreamGeometry>
+  <StreamGeometry x:Key="LogoBandBottom">M14,41 A18,6 0 0 0 50,41 V50 A18,6 0 0 1 14,50 Z</StreamGeometry>
+  <StreamGeometry x:Key="LogoCap">M14,13 A18,6 0 1 0 50,13 A18,6 0 1 0 14,13 Z</StreamGeometry>
+  <StreamGeometry x:Key="LogoBolt">M34,17 H43 L37,30 H44 L27,58 L31,36 H24 Z</StreamGeometry>
 
 </ResourceDictionary>

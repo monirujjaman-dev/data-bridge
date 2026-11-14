@@ -1,5 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="t">
   <title id="t">DataBridge</title>
-  <!-- Tile-less mark: inherits text colour. Use sign yellow on the anthracite rail, anthracite on yellow. -->
-  <path fill="currentColor" d="M10,27 H32 L22,17 H33 L48,32 L33,47 H22 L32,37 H10 Z M51,14 H57 V50 H51 Z"/>
+  <!-- Tile-less mark: database cylinder with an amber lightning bolt. The bolt keyline inherits the
+       text colour (primary navy #0B2A4A on light grounds) so it separates the bolt from the cylinder. -->
+  <path fill="#2563EB" d="M14,15 A18,6 0 0 0 50,15 V25 A18,6 0 0 1 14,25 Z"/>
+  <path fill="#1D8FD0" d="M14,28 A18,6 0 0 0 50,28 V38 A18,6 0 0 1 14,38 Z"/>
+  <path fill="#14B8A6" d="M14,41 A18,6 0 0 0 50,41 V50 A18,6 0 0 1 14,50 Z"/>
+  <ellipse cx="32" cy="13" rx="18" ry="6" fill="#60A5FA"/>
+  <path fill="#F59E0B" stroke="currentColor" stroke-width="3" stroke-linejoin="round" paint-order="stroke"
+        d="M34,17 H43 L37,30 H44 L27,58 L31,36 H24 Z"/>
 </svg>

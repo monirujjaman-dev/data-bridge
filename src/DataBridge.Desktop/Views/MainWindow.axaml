@@ -19,7 +19,14 @@
           <Viewbox Width="24" Height="24">
             <Canvas Width="64" Height="64">
               <Path Data="{StaticResource LogoTile}" Fill="{StaticResource DbSignBrush}" />
-              <Path Data="{StaticResource LogoMark}" Fill="{StaticResource DbSignTextBrush}" />
+              <Path Data="{StaticResource LogoBandTop}" Fill="{StaticResource DbLogoBandTopBrush}" />
+              <Path Data="{StaticResource LogoBandMiddle}" Fill="{StaticResource DbLogoBandMiddleBrush}" />
+              <Path Data="{StaticResource LogoBandBottom}" Fill="{StaticResource DbLogoBandBottomBrush}" />
+              <Path Data="{StaticResource LogoCap}" Fill="{StaticResource DbLogoCapBrush}" />
+              <!-- Navy keyline first, amber fill on top, so the bolt reads against the cylinder. -->
+              <Path Data="{StaticResource LogoBolt}" Stroke="{StaticResource DbSignBrush}" StrokeThickness="3"
+                    StrokeJoin="Round" />
+              <Path Data="{StaticResource LogoBolt}" Fill="{StaticResource DbLogoBoltBrush}" />
             </Canvas>
           </Viewbox>
           <TextBlock Classes="subtitle" Text="DataBridge" VerticalAlignment="Center"

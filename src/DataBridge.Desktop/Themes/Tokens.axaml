@@ -2,13 +2,16 @@
   DataBridge design tokens: "Wayfinding Signage".
   Like an airport sign, every screen says where data comes from and where it goes.
 
-  Sign yellow is reserved for identity and direction: the route sign (source to
-  target), the selected navigation item and the app mark. Never for state, never
-  as a general accent. Focus, selection and primary buttons use the OS accent
-  colour through FluentTheme.
+  Brand: primary navy #0B2A4A, accent blue #2563EB, sync teal #14B8A6,
+  slate neutrals (background #F1F5F9, text #0F172A).
+  Primary navy is reserved for identity and direction: the route sign (source to
+  target) and the app tile. Sync teal marks the direction on the sign (arrow, rule,
+  bottom edge) and the selected navigation item. Never for state, never as a general
+  highlight. Focus, selection and primary buttons use the brand accent blue through
+  FluentTheme (DataBridgeTheme.axaml).
 
   State colours follow signage convention and what a sync would do to the target:
-    Add     (green)  created on target / cleared / completed
+    Add     (teal)   created on target / cleared / completed
     Info    (blue)   changed / informational
     Caution (orange) awaiting approval / needs attention / unstable snapshot
     Danger  (red)    destructive / blocked / failed
@@ -22,62 +25,74 @@
   <ResourceDictionary.ThemeDictionaries>
 
     <ResourceDictionary x:Key="Light">
-      <Color x:Key="DbGroundColor">#F4F5F2</Color>
+      <Color x:Key="DbGroundColor">#F1F5F9</Color>
       <Color x:Key="DbPanelColor">#FFFFFF</Color>
-      <Color x:Key="DbSunkenColor">#EDEEEA</Color>
-      <Color x:Key="DbRailColor">#1E2124</Color>
-      <Color x:Key="DbRailSelectedColor">#2E3236</Color>
-      <Color x:Key="DbHairlineColor">#DADDD6</Color>
-      <Color x:Key="DbRuleColor">#1E2124</Color>
-      <Color x:Key="DbTextColor">#1E2124</Color>
-      <Color x:Key="DbTextMutedColor">#565C58</Color>
-      <Color x:Key="DbAddColor">#1F7A4D</Color>
-      <Color x:Key="DbInfoColor">#2B5FB4</Color>
+      <Color x:Key="DbSunkenColor">#EAEFF5</Color>
+      <Color x:Key="DbRailColor">#0F172A</Color>
+      <Color x:Key="DbRailSelectedColor">#1E293B</Color>
+      <Color x:Key="DbHairlineColor">#D5DDE7</Color>
+      <Color x:Key="DbRuleColor">#0F172A</Color>
+      <Color x:Key="DbTextColor">#0F172A</Color>
+      <Color x:Key="DbTextMutedColor">#475569</Color>
+      <Color x:Key="DbAddColor">#0F766E</Color>
+      <Color x:Key="DbInfoColor">#1D4ED8</Color>
       <Color x:Key="DbCautionColor">#A34A00</Color>
       <Color x:Key="DbDangerColor">#B3261E</Color>
-      <Color x:Key="DbExcludedColor">#5A605C</Color>
+      <Color x:Key="DbExcludedColor">#556274</Color>
       <Color x:Key="DbDangerSurfaceColor">#FBEAE8</Color>
       <Color x:Key="DbCautionSurfaceColor">#FCEEDF</Color>
-      <Color x:Key="DbAddSurfaceColor">#E4F2EA</Color>
-      <Color x:Key="DbCodeColor">#1E2124</Color>
+      <Color x:Key="DbAddSurfaceColor">#E1F3F0</Color>
+      <Color x:Key="DbCodeColor">#0F172A</Color>
     </ResourceDictionary>
 
     <ResourceDictionary x:Key="Dark">
-      <Color x:Key="DbGroundColor">#1E2124</Color>
-      <Color x:Key="DbPanelColor">#272B2E</Color>
-      <Color x:Key="DbSunkenColor">#191C1E</Color>
-      <Color x:Key="DbRailColor">#17191B</Color>
-      <Color x:Key="DbRailSelectedColor">#272B2E</Color>
-      <Color x:Key="DbHairlineColor">#3A3F43</Color>
-      <Color x:Key="DbRuleColor">#EEEEEA</Color>
-      <Color x:Key="DbTextColor">#EEEEEA</Color>
-      <Color x:Key="DbTextMutedColor">#A9AEAA</Color>
-      <Color x:Key="DbAddColor">#5BC07F</Color>
+      <Color x:Key="DbGroundColor">#0B1220</Color>
+      <Color x:Key="DbPanelColor">#141D2F</Color>
+      <Color x:Key="DbSunkenColor">#080D18</Color>
+      <Color x:Key="DbRailColor">#060B16</Color>
+      <Color x:Key="DbRailSelectedColor">#172036</Color>
+      <Color x:Key="DbHairlineColor">#273449</Color>
+      <Color x:Key="DbRuleColor">#F1F5F9</Color>
+      <Color x:Key="DbTextColor">#F1F5F9</Color>
+      <Color x:Key="DbTextMutedColor">#94A3B8</Color>
+      <Color x:Key="DbAddColor">#2DD4BF</Color>
       <Color x:Key="DbInfoColor">#7EA6F2</Color>
       <Color x:Key="DbCautionColor">#F59E4A</Color>
       <Color x:Key="DbDangerColor">#F2766B</Color>
-      <Color x:Key="DbExcludedColor">#989E99</Color>
-      <Color x:Key="DbDangerSurfaceColor">#3A2826</Color>
-      <Color x:Key="DbCautionSurfaceColor">#3A3024</Color>
-      <Color x:Key="DbAddSurfaceColor">#233429</Color>
-      <Color x:Key="DbCodeColor">#DCDDD8</Color>
+      <Color x:Key="DbExcludedColor">#8D99AB</Color>
+      <Color x:Key="DbDangerSurfaceColor">#3A1E24</Color>
+      <Color x:Key="DbCautionSurfaceColor">#36291B</Color>
+      <Color x:Key="DbAddSurfaceColor">#0E2E2D</Color>
+      <Color x:Key="DbCodeColor">#CBD5E1</Color>
     </ResourceDictionary>
 
   </ResourceDictionary.ThemeDictionaries>
 
   <!-- The sign is the same in both themes: signage does not invert at night. -->
-  <Color x:Key="DbSignColor">#FFCC00</Color>
-  <Color x:Key="DbSignTextColor">#1E2124</Color>
-  <Color x:Key="DbSignTextMutedColor">#4A4220</Color>
+  <Color x:Key="DbSignColor">#0B2A4A</Color>
+  <Color x:Key="DbSignTextColor">#FFFFFF</Color>
+  <Color x:Key="DbSignTextMutedColor">#B4C5D9</Color>
+  <!-- Sync teal: direction on the sign (arrow, rule, edge), 5.8:1 on primary navy. -->
+  <Color x:Key="DbSyncColor">#14B8A6</Color>
+  <!-- Selected navigation lettering: a lighter sync teal, >= 7.8:1 on the selected rail item in both themes. -->
+  <Color x:Key="DbRailTextSelectedColor">#2DD4BF</Color>
   <!-- Alert sign (same database on both sides): static red so white lettering stays >= 6.5:1 in both themes. -->
   <Color x:Key="DbSignAlertColor">#B3261E</Color>
   <Color x:Key="DbRailTextColor">#FFFFFF</Color>
-  <Color x:Key="DbRailTextMutedColor">#B9BDB8</Color>
+  <Color x:Key="DbRailTextMutedColor">#94A3B8</Color>
 
   <SolidColorBrush x:Key="DbSignBrush" Color="{StaticResource DbSignColor}" />
   <SolidColorBrush x:Key="DbSignTextBrush" Color="{StaticResource DbSignTextColor}" />
   <SolidColorBrush x:Key="DbSignTextMutedBrush" Color="{StaticResource DbSignTextMutedColor}" />
   <SolidColorBrush x:Key="DbSignAlertBrush" Color="{StaticResource DbSignAlertColor}" />
+  <SolidColorBrush x:Key="DbSyncBrush" Color="{StaticResource DbSyncColor}" />
+  <!-- Logo fills, fixed in both themes. Amber appears only in the logo's lightning bolt. -->
+  <SolidColorBrush x:Key="DbLogoCapBrush" Color="#60A5FA" />
+  <SolidColorBrush x:Key="DbLogoBandTopBrush" Color="#2563EB" />
+  <SolidColorBrush x:Key="DbLogoBandMiddleBrush" Color="#1D8FD0" />
+  <SolidColorBrush x:Key="DbLogoBandBottomBrush" Color="#14B8A6" />
+  <SolidColorBrush x:Key="DbLogoBoltBrush" Color="#F59E0B" />
+  <SolidColorBrush x:Key="DbRailTextSelectedBrush" Color="{StaticResource DbRailTextSelectedColor}" />
   <SolidColorBrush x:Key="DbRailTextBrush" Color="{StaticResource DbRailTextColor}" />
   <SolidColorBrush x:Key="DbRailTextMutedBrush" Color="{StaticResource DbRailTextMutedColor}" />
 
