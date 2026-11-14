@@ -1,4 +1,5 @@
 using DataBridge.Application.Connections;
+using DataBridge.Application.SchemaComparison;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -23,6 +24,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<RenameConnectionProfile>();
         services.AddTransient<DeleteConnectionProfile>();
         services.AddTransient<TestConnection>();
+        services.AddTransient<SavedConnectionRequests>();
+        services.AddTransient<CompareSchemas>();
 
         return services;
     }

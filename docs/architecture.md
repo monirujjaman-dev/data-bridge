@@ -1,6 +1,6 @@
 # DataBridge --- Architecture
 
-**Status:** Approved baseline (revision 3, 2026-11-14)\
+**Status:** Approved baseline (revision 4, 2026-11-15)\
 **Runtime:** .NET 10\
 **UI:** Avalonia\
 **Architecture:** Clean Architecture, modular monolith
@@ -220,6 +220,15 @@ same application-facing capabilities without changing Core.
 -   Optional DacFx: isolated adapter for supported schema
     comparison/deployment features. Do not expose DacFx types in
     Core/Application contracts.
+-   Schema reading (`Providers/SqlServer/Schema`): one read-only batch
+    of catalog queries (`SqlServerCatalogQuery`) assembled into the
+    normalized model. The catalog is not versioned, so concurrent DDL
+    can make result sets disagree; an orphaned child is reported as
+    "schema changed while reading" rather than guessed at. Module and
+    expression text is compared after `TSqlDefinitionNormalizer`, which
+    ignores line endings and indentation but never changes literals,
+    quoted identifiers or line-comment boundaries. Object scope:
+    ADR-0012; DacFx is not used (ADR-0013).
 
 ## 8. Comparison design
 
@@ -448,11 +457,13 @@ Each of these is recorded as an ADR (0001--0008) in `docs/adr/`; see
 | Data-operation materialization | Phase 5 | A plan cannot hold every row (product rule 7). Options: re-stream source rows by key at execution and apply only rows whose comparison fingerprint still matches; or stage changed keys in a local or target-side staging table. Whatever is chosen, the reviewed plan must describe exactly what executes, and drift since comparison must be detected, not applied silently. |
 | Key ordering strategy | Phase 4 | Baseline in §8; confirm with integration tests under CI/AS collations. |
 | Transaction granularity | Phase 6 | Per operation, per batch or per plan; user-configurable within the limits SQL Server can guarantee. |
-| DacFx adoption | Phase 3 | Depends on cross-platform evaluation. |
+| ~~DacFx adoption~~ | Phase 3 | Decided in ADR-0013: not used for schema reading or comparison in v1; script generation would need its own evaluation. |
 | ~~SQL Server test fixture~~ | Phase 2 | Decided in ADR-0011: disposable SQL Server 2022 containers (Testcontainers); x64 only, so ARM machines use emulation or a remote instance. |
 
 ## 17. Revision history
 
+-   **Revision 4 (2026-11-15):** schema reading in §7; closed the DacFx
+    decision (ADR-0013).
 -   **Revision 3 (2026-11-14):** added `DataBridge.ArchitectureTests`
     to the solution structure; recorded §15 decisions as ADRs
     0001--0008.

@@ -329,17 +329,24 @@ Decided:
 -   **Microsoft Entra ID authentication:** deferred with Azure SQL. v1
     supports SQL authentication and integrated (Windows or Kerberos)
     authentication (ADR-0010).
+-   **Object types beyond §6.2:** not compared in v1. Synonyms,
+    user-defined and table types, partitioning, temporal,
+    memory-optimized, graph and file tables, full-text objects, XML and
+    spatial indexes, assemblies, DDL triggers, users and roles are
+    reported as not compared; permissions, statistics and extended
+    properties are outside the schema model (ADR-0012).
 
 Open:
 
 | Decision | Needed by |
 |----------|-----------|
-| Object types beyond §6.2: synonyms, user-defined types and table types, partition schemes/functions, temporal and memory-optimized tables, full-text objects, users/roles/permissions | Phase 3 |
 | Environment labels on profiles (e.g. Production) and whether they change approval requirements | Phase 5 |
 | How data operations are materialized in a plan without holding all rows (see architecture §16) | Phase 5 |
 
 ## 11. Revision history
 
+-   **Revision 4 (2026-11-15):** decided the object types beyond §6.2
+    (ADR-0012).
 -   **Revision 3 (2026-11-14):** decided supported SQL Server targets
     and deferred Entra ID authentication (ADR-0010).
 -   **Revision 2 (2026-11-14):** added terminology (write target,

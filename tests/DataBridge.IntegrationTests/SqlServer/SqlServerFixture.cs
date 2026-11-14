@@ -1,3 +1,6 @@
+using DataBridge.Application.Abstractions;
+using DataBridge.Application.Connections;
+using DataBridge.Core.Connections;
 using DataBridge.IntegrationTests.SqlServer;
 using Microsoft.Data.SqlClient;
 using Testcontainers.MsSql;
@@ -76,12 +79,66 @@ public sealed class SqlServerFixture : IAsyncLifetime
     }
 
     /// <summary>Runs administrative SQL as <c>sa</c>. Test-only: callers pass generated, safe identifiers.</summary>
-    public async Task ExecuteAsync(string sql, CancellationToken cancellationToken)
+    public Task ExecuteAsync(string sql, CancellationToken cancellationToken) =>
+        ExecuteInAsync("master", sql, cancellationToken);
+
+    /// <summary>
+    /// Runs a script as <c>sa</c> in <paramref name="database"/>, batch by batch: lines that contain only <c>GO</c>
+    /// separate batches, as in SQL Server tools.
+    /// </summary>
+    public async Task ExecuteInAsync(string database, string script, CancellationToken cancellationToken)
     {
-        await using var connection = new SqlConnection(Container.GetConnectionString());
+        var builder = new SqlConnectionStringBuilder(Container.GetConnectionString()) { InitialCatalog = database };
+        await using var connection = new SqlConnection(builder.ConnectionString);
         await connection.OpenAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.CommandText = sql;
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        foreach (var batch in Batches(script))
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = batch;
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    /// <summary>A request for <paramref name="database"/> as <c>sa</c>, or as the given login.</summary>
+    public DatabaseConnectionRequest Request(string database, string userName = "sa", string? password = null)
+    {
+        var profile = DatabaseConnection.Create(
+            Guid.NewGuid(),
+            "Integration test",
+            DatabaseProviderType.SqlServer,
+            Server,
+            database,
+            AuthenticationType.SqlAuthentication,
+            userName,
+            credentialReference: null,
+            new ConnectionSettings(Encrypt: true, TrustServerCertificate: true, ConnectTimeoutSeconds: 30, ApplicationName: null),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow).Value;
+        return new DatabaseConnectionRequest(profile, new Secret(password ?? AdminPassword));
+    }
+
+    private static IEnumerable<string> Batches(string script)
+    {
+        var batch = new System.Text.StringBuilder();
+        foreach (var line in script.Split('\n'))
+        {
+            if (string.Equals(line.Trim(), "GO", StringComparison.OrdinalIgnoreCase))
+            {
+                if (batch.ToString().Trim().Length > 0)
+                {
+                    yield return batch.ToString();
+                }
+
+                batch.Clear();
+                continue;
+            }
+
+            batch.Append(line).Append('\n');
+        }
+
+        if (batch.ToString().Trim().Length > 0)
+        {
+            yield return batch.ToString();
+        }
     }
 }

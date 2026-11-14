@@ -29,6 +29,7 @@ internal sealed class DesktopFixture : IDisposable
             {
                 services.Replace(ServiceDescriptor.Singleton<ICredentialStore>(CredentialStore));
                 services.Replace(ServiceDescriptor.Singleton<IDatabaseProvider>(DatabaseProvider));
+                services.Replace(ServiceDescriptor.Singleton<ISchemaReader>(SchemaReader));
             });
     }
 
@@ -39,6 +40,10 @@ internal sealed class DesktopFixture : IDisposable
     public FakeCredentialStore CredentialStore { get; } = new();
 
     public FakeDatabaseProvider DatabaseProvider { get; } = new();
+
+    public FakeSchemaReader SchemaReader { get; } = new();
+
+    public SchemaComparisonViewModel SchemaComparison => Services.GetRequiredService<SchemaComparisonViewModel>();
 
     public IServiceProvider Services => _host.Services;
 
@@ -136,6 +141,9 @@ internal sealed class FakeDatabaseProvider : IDatabaseProvider
             "SQL Server 2022 (16.0.4135.4) Developer Edition (64-bit)",
             "Latin1_General_CI_AS"));
 
+    /// <summary>When set, decides the result per request instead of <see cref="Next"/>.</summary>
+    public Func<DatabaseConnectionRequest, DataBridge.Shared.Results.Result<DataBridge.Core.Connections.ResolvedDatabaseIdentity>>? Resolve { get; set; }
+
     public DataBridge.Core.Connections.DatabaseProviderType ProviderType => DataBridge.Core.Connections.DatabaseProviderType.SqlServer;
 
     public Task<DataBridge.Shared.Results.Result<DataBridge.Core.Connections.ResolvedDatabaseIdentity>> ResolveIdentityAsync(
@@ -148,6 +156,33 @@ internal sealed class FakeDatabaseProvider : IDatabaseProvider
             Requests.Add(request);
         }
 
-        return Task.FromResult(Next);
+        return Task.FromResult(Resolve?.Invoke(request) ?? Next);
+    }
+}
+
+/// <summary>A schema reader that returns a prepared schema per database name instead of connecting.</summary>
+internal sealed class FakeSchemaReader : ISchemaReader
+{
+    public Dictionary<string, DataBridge.Core.Schema.DatabaseSchema> Schemas { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>When set, reads wait for it (honoring cancellation).</summary>
+    public TaskCompletionSource? ReadGate { get; set; }
+
+    public DataBridge.Core.Connections.DatabaseProviderType ProviderType => DataBridge.Core.Connections.DatabaseProviderType.SqlServer;
+
+    public DataBridge.Core.Schema.ISqlDefinitionNormalizer DefinitionNormalizer => DataBridge.Core.Schema.ExactSqlDefinitionNormalizer.Instance;
+
+    public async Task<DataBridge.Shared.Results.Result<DataBridge.Core.Schema.DatabaseSchema>> ReadSchemaAsync(
+        DatabaseConnectionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (ReadGate is { } gate)
+        {
+            await gate.Task.WaitAsync(cancellationToken);
+        }
+
+        var schema = Schemas.GetValueOrDefault(request.Profile.DatabaseName)
+            ?? new DataBridge.Core.Schema.DatabaseSchema(request.Profile.DatabaseName, [], [], false, true, DateTimeOffset.UnixEpoch);
+        return DataBridge.Shared.Results.Result.Success(schema);
     }
 }

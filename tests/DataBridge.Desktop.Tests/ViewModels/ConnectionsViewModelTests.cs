@@ -23,7 +23,7 @@ public sealed class ConnectionsViewModelTests : IDisposable
         var page = await _fixture.StartAsync();
 
         Assert.Same(page, _fixture.MainWindow.CurrentPage);
-        Assert.Equal("Connections", Assert.Single(_fixture.MainWindow.NavigationItems).Title);
+        Assert.Equal("Connections", _fixture.MainWindow.NavigationItems[0].Title);
         Assert.False(page.HasProfiles);
         Assert.True(page.Editor.IsNew);
         Assert.True(File.Exists(_fixture.DatabasePath));

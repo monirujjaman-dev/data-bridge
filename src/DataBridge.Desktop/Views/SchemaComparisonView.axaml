@@ -1,0 +1,207 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DataBridge.Desktop.ViewModels"
+             xmlns:comparison="using:DataBridge.Core.Comparison"
+             x:Class="DataBridge.Desktop.Views.SchemaComparisonView"
+             x:DataType="vm:SchemaComparisonViewModel">
+
+  <DockPanel>
+
+    <!-- Route sign: what the servers reported, source left, target right. Comparison reads both sides only. -->
+    <Border Classes="route-sign" Classes.alert="{Binding IsSameDatabase}" DockPanel.Dock="Top"
+            IsVisible="{Binding HasReport}">
+      <Grid ColumnDefinitions="*,Auto,Auto,*">
+        <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+          <TextBlock Classes="label" Text="SOURCE · READ ONLY" />
+          <TextBlock Classes="display" Text="{Binding SourceIdentity.DatabaseName}" TextTrimming="CharacterEllipsis"
+                     ToolTip.Tip="{Binding SourceIdentity.DatabaseName}" />
+          <TextBlock Classes="detail" TextTrimming="CharacterEllipsis">
+            <Run Text="{Binding SourceIdentity.ServerName}" /><Run Text=" · " /><Run Text="{Binding SourceIdentity.ServerVersion}" />
+          </TextBlock>
+        </StackPanel>
+        <PathIcon Grid.Column="1" Classes="sign-arrow" Margin="24,0" VerticalAlignment="Center" />
+        <Rectangle Grid.Column="2" Classes="sign-rule" />
+        <StackPanel Grid.Column="3" Spacing="4" VerticalAlignment="Center">
+          <TextBlock Classes="label" Text="TARGET · READ ONLY" />
+          <TextBlock Classes="display" Text="{Binding TargetIdentity.DatabaseName}" TextTrimming="CharacterEllipsis"
+                     ToolTip.Tip="{Binding TargetIdentity.DatabaseName}" />
+          <TextBlock Classes="detail" TextTrimming="CharacterEllipsis">
+            <Run Text="{Binding TargetIdentity.ServerName}" /><Run Text=" · " /><Run Text="{Binding TargetIdentity.ServerVersion}" />
+          </TextBlock>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Toolbar: choose the two profiles and compare. -->
+    <Border Classes="toolbar" DockPanel.Dock="Top">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Classes="accent" VerticalAlignment="Center" Content="Compare schemas"
+                Command="{Binding CompareCommand}" HotKey="Ctrl+R"
+                ToolTip.Tip="Read both schemas and compare them (Ctrl+R). Neither database is changed." />
+        <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+          <TextBlock Classes="title" Text="Schema comparison" VerticalAlignment="Center" />
+          <Label Content="_Source" Target="SourcePicker" VerticalAlignment="Center" />
+          <ComboBox x:Name="SourcePicker" Width="240" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedSource}"
+                    IsEnabled="{Binding IsIdle}" PlaceholderText="Choose a profile"
+                    AutomationProperties.Name="Source profile" />
+          <Label Content="_Target" Target="TargetPicker" VerticalAlignment="Center" />
+          <ComboBox x:Name="TargetPicker" Width="240" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedTarget}"
+                    IsEnabled="{Binding IsIdle}" PlaceholderText="Choose a profile"
+                    AutomationProperties.Name="Target profile" />
+          <TextBlock Classes="caption caution" Text="{Binding SelectionHint}" VerticalAlignment="Center"
+                     IsVisible="{Binding SelectionHint, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Status bar: progress with Cancel while running, otherwise the result summary. -->
+    <Border Classes="statusbar" DockPanel.Dock="Bottom" MinHeight="32">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="16" IsVisible="{Binding IsBusy}">
+          <ProgressBar IsIndeterminate="True" Width="120" VerticalAlignment="Center" />
+          <Button Content="Cancel" Command="{Binding CancelBusyCommand}" HotKey="Escape" />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Right" Classes="caption numeric" Margin="16,0" Text="{Binding SummaryText}" VerticalAlignment="Center" />
+        <TextBlock Classes="caption" Text="{Binding StatusText}" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+
+    <DockPanel Margin="24">
+
+      <StackPanel DockPanel.Dock="Top" Spacing="12">
+        <Border Classes="callout danger" Margin="0,0,0,12" IsVisible="{Binding IsSameDatabase}">
+          <ContentControl Classes="signal blocked">
+            <TextBlock TextWrapping="Wrap" FontWeight="Bold"
+                       Text="Both profiles resolve to the same database, so every object compares equal to itself." />
+          </ContentControl>
+        </Border>
+        <Border Classes="callout danger" Margin="0,0,0,12" IsVisible="{Binding ComparisonError, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <StackPanel Spacing="4">
+            <ContentControl Classes="signal blocked">
+              <TextBlock FontWeight="Bold" Text="The schemas could not be compared" />
+            </ContentControl>
+            <TextBlock Text="{Binding ComparisonError}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+        <Border Classes="callout danger" Margin="0,0,0,12" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <ContentControl Classes="signal blocked">
+            <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
+          </ContentControl>
+        </Border>
+        <Border Classes="callout" Margin="0,0,0,12" IsVisible="{Binding HasPartialMetadata}">
+          <ContentControl Classes="signal warning">
+            <TextBlock TextWrapping="Wrap"
+                       Text="A login cannot see every object (it lacks VIEW DEFINITION). Objects it may not see are marked Cannot compare instead of missing." />
+          </ContentControl>
+        </Border>
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,16,420" IsVisible="{Binding HasReport}">
+
+        <!-- Results: virtualized two-line grid; equal objects hidden unless asked for. -->
+        <Border Classes="panel" Grid.Column="0" Padding="0">
+          <DockPanel>
+            <DockPanel DockPanel.Dock="Top" Margin="16,12">
+              <CheckBox DockPanel.Dock="Right" Content="Show _equal objects" IsChecked="{Binding ShowEqual}" />
+              <TextBlock Classes="label" Text="OBJECTS" VerticalAlignment="Center" />
+            </DockPanel>
+
+            <Expander DockPanel.Dock="Bottom" Margin="16,8,16,16" Header="Not compared"
+                      IsVisible="{Binding HasUnsupportedObjects}">
+              <ListBox ItemsSource="{Binding UnsupportedObjects}" MaxHeight="200" Background="Transparent"
+                       AutomationProperties.Name="Objects that are not compared">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:UnsupportedItem">
+                    <StackPanel Spacing="2">
+                      <ContentControl Classes="signal excluded">
+                        <TextBlock Text="{Binding Name}" />
+                      </ContentControl>
+                      <TextBlock Classes="caption muted" Text="{Binding Detail}" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Expander>
+
+            <Panel>
+              <DataGrid Classes="two-line" ItemsSource="{Binding VisibleDifferences}"
+                        SelectedItem="{Binding SelectedDifference}" IsReadOnly="True"
+                        SelectionMode="Single" CanUserReorderColumns="False"
+                        AutomationProperties.Name="Schema differences">
+                <DataGrid.Columns>
+                  <DataGridTemplateColumn Header="STATE" Width="170" SortMemberPath="StatusText">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate x:DataType="vm:SchemaDifferenceItem">
+                        <ContentControl Classes="signal" Margin="12,0" VerticalAlignment="Center"
+                                        Classes.add="{Binding IsAdd}" Classes.remove="{Binding IsRemove}"
+                                        Classes.change="{Binding IsChange}" Classes.cleared="{Binding IsCleared}"
+                                        Classes.blocked="{Binding IsBlocked}" Classes.warning="{Binding IsWarning}">
+                          <TextBlock Text="{Binding StatusText}" />
+                        </ContentControl>
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTemplateColumn Header="OBJECT" Width="*" SortMemberPath="Name">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate x:DataType="vm:SchemaDifferenceItem">
+                        <StackPanel Margin="12,0" VerticalAlignment="Center" Spacing="2">
+                          <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Name}" />
+                          <TextBlock Classes="secondary" Text="{Binding Detail}" ToolTip.Tip="{Binding Detail}" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTextColumn Header="TYPE" Width="160" Binding="{Binding TypeText}" />
+                </DataGrid.Columns>
+              </DataGrid>
+              <TextBlock Classes="muted" Margin="16" TextWrapping="Wrap" VerticalAlignment="Top"
+                         IsVisible="{Binding HasNoVisibleDifferences}"
+                         Text="No differences in the compared objects. Turn on Show equal objects to list them." />
+            </Panel>
+          </DockPanel>
+        </Border>
+
+        <!-- Details of the selected object: each differing property, source then target. -->
+        <Border Classes="panel" Grid.Column="2">
+          <Panel>
+            <TextBlock Classes="muted" TextWrapping="Wrap" IsVisible="{Binding !HasSelection}"
+                       Text="Select an object to see what differs." />
+            <ScrollViewer IsVisible="{Binding HasSelection}" HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="12">
+                <TextBlock Classes="subtitle" Text="{Binding SelectedDifference.Name}" TextWrapping="Wrap" />
+                <TextBlock Classes="caption muted">
+                  <Run Text="{Binding SelectedDifference.TypeText}" /><Run Text=" · " /><Run Text="{Binding SelectedDifference.StatusText}" />
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Text="{Binding SelectedDifference.Difference.Reason}"
+                           IsVisible="{Binding SelectedDifference.Difference.Reason, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <ItemsControl ItemsSource="{Binding SelectedProperties}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="comparison:PropertyDifference">
+                      <StackPanel Spacing="4" Margin="0,0,0,12">
+                        <TextBlock FontWeight="SemiBold" Text="{Binding PropertyName}" />
+                        <TextBlock Classes="label" Text="SOURCE" />
+                        <Border Classes="sunken">
+                          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <SelectableTextBlock Classes="code" Text="{Binding SourceValue, TargetNullValue='(none)'}" />
+                          </ScrollViewer>
+                        </Border>
+                        <TextBlock Classes="label" Text="TARGET" />
+                        <Border Classes="sunken">
+                          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <SelectableTextBlock Classes="code" Text="{Binding TargetValue, TargetNullValue='(none)'}" />
+                          </ScrollViewer>
+                        </Border>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </ScrollViewer>
+          </Panel>
+        </Border>
+      </Grid>
+    </DockPanel>
+
+  </DockPanel>
+
+</UserControl>

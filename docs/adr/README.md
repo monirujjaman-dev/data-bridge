@@ -18,6 +18,8 @@ Records 0001--0008 record the baseline decisions in
 | [0009](0009-sqlite-data-access.md) | Plain ADO.NET over Microsoft.Data.Sqlite for local persistence | Accepted |
 | [0010](0010-supported-sql-server-targets.md) | SQL Server 2017 and later; Azure SQL and Entra ID deferred | Accepted |
 | [0011](0011-sql-server-integration-test-fixture.md) | Disposable SQL Server containers for integration tests | Accepted |
+| [0012](0012-schema-comparison-object-scope.md) | Schema comparison object scope in v1 | Accepted |
+| [0013](0013-dacfx-not-adopted-for-schema-reading.md) | DacFx is not adopted for schema reading and comparison | Accepted |
 
 ## Writing a new record
 
