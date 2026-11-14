@@ -1,6 +1,7 @@
 using DataBridge.Application.Abstractions;
 using DataBridge.Core.Connections;
 using DataBridge.Shared.Results;
+using Microsoft.Extensions.Logging;
 
 namespace DataBridge.Application.Connections;
 
@@ -17,7 +18,8 @@ public sealed record ConnectionProfileSaved(DatabaseConnection Profile, SecretSt
 public sealed class CreateConnectionProfile(
     IConnectionProfileRepository repository,
     ProfileSecretStore secrets,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ILogger<CreateConnectionProfile> logger)
 {
     public async Task<Result<ConnectionProfileSaved>> ExecuteAsync(
         ConnectionProfileInput input,
@@ -60,13 +62,11 @@ public sealed class CreateConnectionProfile(
             throw;
         }
 
-        if (pending is null)
-        {
-            return Result.Success(new ConnectionProfileSaved(profile, SecretStorage.None));
-        }
-
-        var warning = await secrets.CommitAsync(pending, previousReference: null);
-        return Result.Success(new ConnectionProfileSaved(profile, pending.Storage, warning));
+        var saved = pending is null
+            ? new ConnectionProfileSaved(profile, SecretStorage.None)
+            : new ConnectionProfileSaved(profile, pending.Storage, await secrets.CommitAsync(pending, previousReference: null));
+        ConnectionProfileLog.ProfileCreated(logger, profile.Id, saved.SecretStorage.Kind);
+        return Result.Success(saved);
     }
 
     private Task UndoAsync(PendingSecret? pending) =>

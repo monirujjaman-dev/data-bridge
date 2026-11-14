@@ -168,13 +168,16 @@ internal sealed class ConnectionProfileFixture
 
     public ConnectionProfileFixture()
     {
-        Secrets = new ProfileSecretStore(CredentialStore, SessionSecrets);
-        Create = new CreateConnectionProfile(Repository, Secrets, Clock);
-        Update = new UpdateConnectionProfile(Repository, Secrets, Clock);
-        Rename = new RenameConnectionProfile(Repository, Clock);
-        Delete = new DeleteConnectionProfile(Repository, Secrets);
+        Secrets = new ProfileSecretStore(CredentialStore, SessionSecrets, Log.For<ProfileSecretStore>());
+        Create = new CreateConnectionProfile(Repository, Secrets, Clock, Log.For<CreateConnectionProfile>());
+        Update = new UpdateConnectionProfile(Repository, Secrets, Clock, Log.For<UpdateConnectionProfile>());
+        Rename = new RenameConnectionProfile(Repository, Clock, Log.For<RenameConnectionProfile>());
+        Delete = new DeleteConnectionProfile(Repository, Secrets, Log.For<DeleteConnectionProfile>());
         List = new ListConnectionProfiles(Repository);
     }
+
+    /// <summary>Every log entry written by the use cases.</summary>
+    public RecordingLog Log { get; } = new();
 
     public InMemoryConnectionProfileRepository Repository { get; } = new();
 

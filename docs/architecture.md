@@ -384,6 +384,26 @@ so a failed save never loses the previous password.
     secret/data redaction.
 -   User-facing errors should be actionable without exposing secrets.
 
+Implementation (`Infrastructure/Logging`): code logs through
+`ILogger<T>`, using source-generated `[LoggerMessage]` methods in
+production code. Serilog writes compact JSON, one event per line, to a
+daily rolling file (`databridge-YYYYMMDD.log`, 10 MB per file, 14
+files kept) in `DataBridge/logs` under the local application data
+folder. Logging scopes become event properties, so correlation ids
+(`SessionId`, `PlanId`, `OperationId`) are added with
+`ILogger.BeginScope`. Redaction has three layers:
+
+1.  `Secret` values always render as `[redacted]`.
+2.  Properties whose names denote a secret (`Password`, `Pwd`,
+    `Secret`, `Token`, `ApiKey`, …), including nested object,
+    dictionary and scope values, are replaced; secrets inside string
+    values such as connection strings are removed.
+3.  Every formatted line is scrubbed for `key=value` and JSON secrets,
+    which also covers exception text and literal template text.
+
+Redaction is a safety net: log events carry ids and outcomes, never
+profile names, servers, user names or row values.
+
 ## 14. Deployment
 
 -   Self-contained publish for each supported RID.

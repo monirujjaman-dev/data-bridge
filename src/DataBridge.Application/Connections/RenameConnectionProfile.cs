@@ -1,11 +1,15 @@
 using DataBridge.Application.Abstractions;
 using DataBridge.Core.Connections;
 using DataBridge.Shared.Results;
+using Microsoft.Extensions.Logging;
 
 namespace DataBridge.Application.Connections;
 
 /// <summary>Renames a connection profile (FR-CON-006). The password is untouched.</summary>
-public sealed class RenameConnectionProfile(IConnectionProfileRepository repository, TimeProvider timeProvider)
+public sealed class RenameConnectionProfile(
+    IConnectionProfileRepository repository,
+    TimeProvider timeProvider,
+    ILogger<RenameConnectionProfile> logger)
 {
     public async Task<Result<DatabaseConnection>> ExecuteAsync(
         Guid profileId,
@@ -30,6 +34,13 @@ public sealed class RenameConnectionProfile(IConnectionProfileRepository reposit
         }
 
         var error = await ProfileWrites.UpdateAsync(repository, renamed.Value, existing, cancellationToken);
-        return error is null ? renamed : Result.Failure<DatabaseConnection>(error);
+        if (error is not null)
+        {
+            ConnectionProfileLog.ProfileRejected(logger, profileId, error.Code);
+            return Result.Failure<DatabaseConnection>(error);
+        }
+
+        ConnectionProfileLog.ProfileRenamed(logger, profileId);
+        return renamed;
     }
 }

@@ -1,6 +1,7 @@
 using DataBridge.Application.Abstractions;
 using DataBridge.Core.Connections;
 using DataBridge.Shared.Results;
+using Microsoft.Extensions.Logging;
 
 namespace DataBridge.Application.Connections;
 
@@ -12,7 +13,10 @@ namespace DataBridge.Application.Connections;
 public sealed record ConnectionProfileDeleted(string? Warning);
 
 /// <summary>Deletes a connection profile and its saved password (FR-CON-006).</summary>
-public sealed class DeleteConnectionProfile(IConnectionProfileRepository repository, ProfileSecretStore secrets)
+public sealed class DeleteConnectionProfile(
+    IConnectionProfileRepository repository,
+    ProfileSecretStore secrets,
+    ILogger<DeleteConnectionProfile> logger)
 {
     public async Task<Result<ConnectionProfileDeleted>> ExecuteAsync(Guid profileId, CancellationToken cancellationToken)
     {
@@ -26,8 +30,12 @@ public sealed class DeleteConnectionProfile(IConnectionProfileRepository reposit
         // password again, whereas the reverse order could leave an orphaned password behind.
         var warning = await secrets.RemoveAsync(profileId, existing.CredentialReference);
 
-        return await repository.DeleteAsync(profileId, cancellationToken)
-            ? Result.Success(new ConnectionProfileDeleted(warning))
-            : Result.Failure<ConnectionProfileDeleted>(ConnectionProfileErrors.NotFound);
+        if (!await repository.DeleteAsync(profileId, cancellationToken))
+        {
+            return Result.Failure<ConnectionProfileDeleted>(ConnectionProfileErrors.NotFound);
+        }
+
+        ConnectionProfileLog.ProfileDeleted(logger, profileId);
+        return Result.Success(new ConnectionProfileDeleted(warning));
     }
 }

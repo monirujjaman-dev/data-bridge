@@ -73,8 +73,21 @@ internal static class DependencyRules
         "Serilog",
     ];
 
+    /// <summary>
+    /// Packages forbidden in <see cref="InnerLayers"/> by exact name, because a prefix rule would also block
+    /// an allowed sibling: the logging implementation, but not <c>Microsoft.Extensions.Logging.Abstractions</c>.
+    /// </summary>
+    public static readonly string[] InfrastructurePackageNames =
+    [
+        "Microsoft.Extensions.Logging",
+        "Microsoft.Extensions.Logging.Console",
+        "Microsoft.Extensions.Logging.Debug",
+        "Microsoft.Extensions.Hosting",
+    ];
+
     public static bool IsInfrastructurePackage(string name) =>
-        InfrastructurePackagePrefixes.Any(prefix =>
+        InfrastructurePackageNames.Contains(name, StringComparer.OrdinalIgnoreCase)
+        || InfrastructurePackagePrefixes.Any(prefix =>
             name.Equals(prefix, StringComparison.OrdinalIgnoreCase)
             || name.StartsWith(prefix + ".", StringComparison.OrdinalIgnoreCase));
 }
