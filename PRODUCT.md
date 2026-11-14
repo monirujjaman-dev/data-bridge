@@ -75,9 +75,11 @@ Two equal claims, per the user:
 
 ## Brand Commitments
 
--   Name: DataBridge. No existing logo, palette or typography.
--   Follow the operating system's light/dark setting by default, and respect
-    the OS accent color where the platform exposes one.
+-   Name: DataBridge. Logo: one database cylinder (blue to teal bands)
+    struck by an amber lightning bolt. Palette: primary navy #0B2A4A,
+    accent blue #2563EB, sync teal #14B8A6, slate neutrals (see DESIGN.md).
+-   Follow the operating system's light/dark setting by default, and use
+    the brand accent blue (#2563EB) for focus, selection and primary actions.
 
 ## Evidence on Hand
 

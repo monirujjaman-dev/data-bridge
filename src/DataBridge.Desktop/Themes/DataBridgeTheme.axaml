@@ -6,7 +6,7 @@
     </Application.Styles>
   and RequestedThemeVariant="Default" so the OS light/dark setting wins.
   The Fluent palettes below re-tint every stock control from the DataBridge tokens.
-  Accent is deliberately not set: FluentTheme then uses the OS accent colour.
+  Accent is the brand accent blue #2563EB in both themes; Fluent derives its lighter and darker steps.
   Requires packages: Avalonia.Themes.Fluent, Avalonia.Controls.DataGrid.
 -->
 <Styles xmlns="https://github.com/avaloniaui"
@@ -15,38 +15,40 @@
   <FluentTheme>
     <FluentTheme.Palettes>
       <ColorPaletteResources x:Key="Light"
-                             RegionColor="#F4F5F2"
+                             Accent="#2563EB"
+                             RegionColor="#F1F5F9"
                              AltHigh="#FFFFFF"
-                             BaseHigh="#1E2124"
-                             BaseMediumHigh="#3B403C"
-                             BaseMedium="#565C58"
-                             BaseMediumLow="#7B817C"
-                             BaseLow="#DADDD6"
-                             ChromeLow="#F7F8F5"
-                             ChromeMediumLow="#EFF0EC"
-                             ChromeMedium="#E5E7E2"
-                             ChromeHigh="#CDD0C9"
-                             ChromeAltLow="#1E2124"
-                             ChromeGray="#646A66"
-                             ListLow="#E3E6E0"
-                             ListMedium="#D6DAD3"
+                             BaseHigh="#0F172A"
+                             BaseMediumHigh="#334155"
+                             BaseMedium="#475569"
+                             BaseMediumLow="#64748B"
+                             BaseLow="#D5DDE7"
+                             ChromeLow="#F8FAFC"
+                             ChromeMediumLow="#EEF2F7"
+                             ChromeMedium="#E2E8F0"
+                             ChromeHigh="#CBD5E1"
+                             ChromeAltLow="#0F172A"
+                             ChromeGray="#64748B"
+                             ListLow="#E2E8F0"
+                             ListMedium="#CBD5E1"
                              ErrorText="#B3261E" />
       <ColorPaletteResources x:Key="Dark"
-                             RegionColor="#1E2124"
-                             AltHigh="#191C1E"
-                             BaseHigh="#EEEEEA"
-                             BaseMediumHigh="#CDD1CC"
-                             BaseMedium="#A9AEAA"
-                             BaseMediumLow="#7E868B"
-                             BaseLow="#3A3F43"
-                             ChromeLow="#222528"
-                             ChromeMediumLow="#272B2E"
-                             ChromeMedium="#2E3236"
-                             ChromeHigh="#4A5258"
-                             ChromeAltLow="#EEEEEA"
-                             ChromeGray="#8E948F"
-                             ListLow="#30363A"
-                             ListMedium="#3A4146"
+                             Accent="#2563EB"
+                             RegionColor="#0B1220"
+                             AltHigh="#080D18"
+                             BaseHigh="#F1F5F9"
+                             BaseMediumHigh="#CBD5E1"
+                             BaseMedium="#94A3B8"
+                             BaseMediumLow="#64748B"
+                             BaseLow="#273449"
+                             ChromeLow="#0F1726"
+                             ChromeMediumLow="#141D2F"
+                             ChromeMedium="#1B2539"
+                             ChromeHigh="#3B4A61"
+                             ChromeAltLow="#F1F5F9"
+                             ChromeGray="#8D99AB"
+                             ListLow="#1E293B"
+                             ListMedium="#2A3850"
                              ErrorText="#F2766B" />
     </FluentTheme.Palettes>
   </FluentTheme>

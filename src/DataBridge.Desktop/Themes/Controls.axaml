@@ -118,7 +118,7 @@
     <Setter Property="Background" Value="{DynamicResource DbDangerSurfaceBrush}" />
   </Style>
 
-  <!-- Navigation rail: a ListBox, so arrow keys and Tab work as users expect. Selected item reads in sign yellow. -->
+  <!-- Navigation rail: a ListBox, so arrow keys and Tab work as users expect. Selected item reads in sync teal. -->
   <Style Selector="ListBox.nav">
     <Setter Property="Background" Value="Transparent" />
   </Style>
@@ -133,16 +133,16 @@
   </Style>
   <Style Selector="ListBox.nav ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource DbRailSelectedBrush}" />
-    <Setter Property="Foreground" Value="{StaticResource DbSignBrush}" />
+    <Setter Property="Foreground" Value="{StaticResource DbRailTextSelectedBrush}" />
     <Setter Property="FontWeight" Value="Bold" />
   </Style>
   <Style Selector="ListBox.nav ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource DbRailSelectedBrush}" />
-    <Setter Property="Foreground" Value="{StaticResource DbSignBrush}" />
+    <Setter Property="Foreground" Value="{StaticResource DbRailTextSelectedBrush}" />
   </Style>
 
   <!--
-    Lists outside the rail select like grid rows: a pale OS-accent tint (16% at rest, 24% hovered), text stays
+    Lists outside the rail select like grid rows: a pale accent-blue tint (16% at rest, 24% hovered), text stays
     in text colour, no saturated fill, so glyphs and muted detail lines keep their contrast.
   -->
   <Style Selector="ListBox:not(.nav) ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
@@ -160,11 +160,11 @@
 
   <!--
     Route sign: the signature element. Source on the left, signage arrow, target on the right,
-    separated by a heavy sign rule. Same yellow in both themes. Usage in DESIGN.md.
+    separated by a heavy sign rule. Primary navy with sync-teal direction, same in both themes. Usage in DESIGN.md.
   -->
   <Style Selector="Border.route-sign">
     <Setter Property="Background" Value="{StaticResource DbSignBrush}" />
-    <Setter Property="BorderBrush" Value="{StaticResource DbSignTextBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource DbSyncBrush}" />
     <Setter Property="BorderThickness" Value="0,0,0,2" />
     <Setter Property="Padding" Value="{StaticResource DbSignPadding}" />
     <Setter Property="MinHeight" Value="{StaticResource DbSignHeight}" />
@@ -182,18 +182,19 @@
   </Style>
   <Style Selector="Border.route-sign PathIcon.sign-arrow">
     <Setter Property="Data" Value="{StaticResource GlyphSignArrow}" />
-    <Setter Property="Foreground" Value="{StaticResource DbSignTextBrush}" />
+    <Setter Property="Foreground" Value="{StaticResource DbSyncBrush}" />
     <Setter Property="Width" Value="56" />
     <Setter Property="Height" Value="56" />
   </Style>
   <Style Selector="Border.route-sign Rectangle.sign-rule">
-    <Setter Property="Fill" Value="{StaticResource DbSignTextBrush}" />
+    <Setter Property="Fill" Value="{StaticResource DbSyncBrush}" />
     <Setter Property="Width" Value="8" />
     <Setter Property="Margin" Value="0,0,16,0" />
   </Style>
   <!-- Same database on both sides, or execution in progress: the sign turns to a warning sign. -->
   <Style Selector="Border.route-sign.alert">
     <Setter Property="Background" Value="{StaticResource DbSignAlertBrush}" />
+    <Setter Property="BorderBrush" Value="White" />
   </Style>
   <Style Selector="Border.route-sign.alert TextBlock, Border.route-sign.alert TextBlock.label, Border.route-sign.alert TextBlock.detail">
     <Setter Property="Foreground" Value="White" />
@@ -271,7 +272,7 @@
     <Setter Property="Fill" Value="{DynamicResource DbDangerBrush}" />
   </Style>
 
-  <!-- Buttons: stock Fluent buttons; primary uses Fluent's "accent" class (OS accent). -->
+  <!-- Buttons: stock Fluent buttons; primary uses Fluent's "accent" class (brand accent blue). -->
   <Style Selector="Button">
     <Setter Property="Padding" Value="16,7" />
     <Setter Property="MinHeight" Value="{StaticResource DbRowHeight}" />
