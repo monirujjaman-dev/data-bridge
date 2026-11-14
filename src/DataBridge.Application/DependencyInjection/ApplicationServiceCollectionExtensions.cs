@@ -1,4 +1,5 @@
 using DataBridge.Application.Connections;
+using DataBridge.Application.DataComparison;
 using DataBridge.Application.SchemaComparison;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -26,6 +27,9 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<TestConnection>();
         services.AddTransient<SavedConnectionRequests>();
         services.AddTransient<CompareSchemas>();
+        services.AddTransient<ComparisonSetup>();
+        services.AddTransient<ListDataComparisonTables>();
+        services.AddTransient<CompareData>();
 
         return services;
     }

@@ -2,6 +2,7 @@ using DataBridge.Application.Abstractions;
 using DataBridge.Infrastructure.Persistence.Sqlite;
 using DataBridge.Infrastructure.Providers;
 using DataBridge.Infrastructure.Providers.SqlServer;
+using DataBridge.Infrastructure.Providers.SqlServer.Data;
 using DataBridge.Infrastructure.Providers.SqlServer.Schema;
 using DataBridge.Infrastructure.Security;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +39,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IDatabaseProvider, SqlServerDatabaseProvider>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<ISchemaReader, SqlServerSchemaReader>();
+        services.AddSingleton<IDataReaderProvider, SqlServerDataReaderProvider>();
         services.AddSingleton<IDatabaseProviderFactory, DatabaseProviderFactory>();
 
         return services;

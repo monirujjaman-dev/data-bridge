@@ -99,6 +99,20 @@ public sealed class SqlServerFixture : IAsyncLifetime
         }
     }
 
+    /// <summary>Runs a query as <c>sa</c> and returns its first row as invariant text, for before-and-after checks.</summary>
+    public async Task<string> QueryRowAsync(string database, string sql, CancellationToken cancellationToken)
+    {
+        var builder = new SqlConnectionStringBuilder(Container.GetConnectionString()) { InitialCatalog = database };
+        await using var connection = new SqlConnection(builder.ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        Assert.True(await reader.ReadAsync(cancellationToken), "The query returned no row.");
+        return string.Join("|", Enumerable.Range(0, reader.FieldCount)
+            .Select(ordinal => Convert.ToString(reader.GetValue(ordinal), System.Globalization.CultureInfo.InvariantCulture)));
+    }
+
     /// <summary>A request for <paramref name="database"/> as <c>sa</c>, or as the given login.</summary>
     public DatabaseConnectionRequest Request(string database, string userName = "sa", string? password = null)
     {

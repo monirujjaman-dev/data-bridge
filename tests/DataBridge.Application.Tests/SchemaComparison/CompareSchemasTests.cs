@@ -217,5 +217,7 @@ public sealed class CompareSchemasTests
         public IDatabaseProvider GetProvider(DatabaseProviderType providerType) => provider;
 
         public ISchemaReader GetSchemaReader(DatabaseProviderType providerType) => reader;
+
+        public IDataReaderProvider GetDataReader(DatabaseProviderType providerType) => throw new NotSupportedException();
     }
 }
