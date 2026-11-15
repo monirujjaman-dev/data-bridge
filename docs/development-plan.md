@@ -14,7 +14,8 @@ open decision it must close (`requirements.md` §10,
 
 ### Current status (2026-11-15)
 
-Phase 4 is in progress. Decided: key ordering, row streaming and read
+Phase 4 is complete; Phase 5 (synchronization planning and SQL
+generation) is next. Decided: key ordering, row streaming and read
 consistency (ADR-0014). Done: typed values, key ordering and row
 fingerprints (`Core/Data`), table planning and the ordered merge with
 order and duplicate verification (`Core/Comparison`), the
@@ -22,13 +23,15 @@ order and duplicate verification (`Core/Comparison`), the
 `CompareData` use cases (`Application/DataComparison`), the SQL Server
 row reader (`Infrastructure/Providers/SqlServer/Data`), integration
 tests for the Phase 4 acceptance cases, a bounded-memory performance
-test, a merge benchmark, and the Data comparison screen. Acceptance
-still needs a green CI run on all three operating systems and the
-screen driven against real databases.
+test, a merge benchmark, and the Data comparison screen. Acceptance was
+confirmed by a green CI run on all three operating systems (pull
+request #9: 430 tests on Linux with none skipped; Windows and macOS
+skip the 32 tests that need a SQL Server container) and by driving the
+screen against two real databases. Comparison sessions and row
+differences are not persisted yet (history is Phase 7).
 
-Phase 3 is complete; Phase 4 (data comparison) is next. Decided: object
-scope beyond §6.2 (ADR-0012) and no DacFx for schema reading
-(ADR-0013). Done: the schema model and
+Phase 3 is complete. Decided: object scope beyond §6.2 (ADR-0012) and
+no DacFx for schema reading (ADR-0013). Done: the schema model and
 object identity (`Core/Schema`), the schema comparer with property-level
 differences (`Core/Comparison`), the `ISchemaReader` port and
 `CompareSchemas` use case (`Application`), the SQL Server catalog reader
@@ -342,6 +345,7 @@ Covers: NFR-PER-001, NFR-PORT-001, NFR-TEST-002, AC-13.
 
 ## 13. Revision history
 
+-   **Revision 5 (2026-11-15):** Phase 4 complete.
 -   **Revision 4 (2026-11-15):** Phase 4 status.
 -   **Revision 3 (2026-11-15):** Phase 3 complete.
 -   **Revision 2 (2026-11-14):** added current status, requirement
