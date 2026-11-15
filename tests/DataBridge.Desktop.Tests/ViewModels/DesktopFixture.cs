@@ -30,6 +30,7 @@ internal sealed class DesktopFixture : IDisposable
                 services.Replace(ServiceDescriptor.Singleton<ICredentialStore>(CredentialStore));
                 services.Replace(ServiceDescriptor.Singleton<IDatabaseProvider>(DatabaseProvider));
                 services.Replace(ServiceDescriptor.Singleton<ISchemaReader>(SchemaReader));
+                services.Replace(ServiceDescriptor.Singleton<IDataReaderProvider>(DataReader));
             });
     }
 
@@ -42,6 +43,10 @@ internal sealed class DesktopFixture : IDisposable
     public FakeDatabaseProvider DatabaseProvider { get; } = new();
 
     public FakeSchemaReader SchemaReader { get; } = new();
+
+    public FakeDataReader DataReader { get; } = new();
+
+    public DataComparisonViewModel DataComparison => Services.GetRequiredService<DataComparisonViewModel>();
 
     public SchemaComparisonViewModel SchemaComparison => Services.GetRequiredService<SchemaComparisonViewModel>();
 
@@ -184,5 +189,62 @@ internal sealed class FakeSchemaReader : ISchemaReader
         var schema = Schemas.GetValueOrDefault(request.Profile.DatabaseName)
             ?? new DataBridge.Core.Schema.DatabaseSchema(request.Profile.DatabaseName, [], [], false, true, DateTimeOffset.UnixEpoch);
         return DataBridge.Shared.Results.Result.Success(schema);
+    }
+}
+
+/// <summary>A data reader over in-memory rows per database and table name.</summary>
+internal sealed class FakeDataReader : IDataReaderProvider
+{
+    public Dictionary<string, Dictionary<string, List<DataBridge.Core.Comparison.DataRow>>> Rows { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>When set, each batch waits for it (honoring cancellation).</summary>
+    public TaskCompletionSource? BatchGate { get; set; }
+
+    private int _readsStarted;
+
+    /// <summary>How many table reads have begun.</summary>
+    public int ReadsStarted => Volatile.Read(ref _readsStarted);
+
+    public DataBridge.Core.Connections.DatabaseProviderType ProviderType => DataBridge.Core.Connections.DatabaseProviderType.SqlServer;
+
+    public DataBridge.Core.Data.IKeyOrdering KeyOrdering => DataBridge.Core.Data.DefaultKeyOrdering.Instance;
+
+    public DataBridge.Core.Comparison.IValueKindClassifier Classifier { get; } = new Kinds();
+
+    public Task<DataBridge.Shared.Results.Result<ITableRowReader>> OpenAsync(
+        DatabaseConnectionRequest request,
+        DataBridge.Core.Comparison.ReadConsistencyMode preferredConsistency,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(DataBridge.Shared.Results.Result.Success<ITableRowReader>(new Reader(this, request.Profile.DatabaseName)));
+
+    private sealed class Kinds : DataBridge.Core.Comparison.IValueKindClassifier
+    {
+        public DataBridge.Core.Data.ValueKind Classify(DataBridge.Core.Schema.ColumnDefinition column) =>
+            column.SqlTypeName == "int" ? DataBridge.Core.Data.ValueKind.WholeNumber : DataBridge.Core.Data.ValueKind.Text;
+    }
+
+    private sealed class Reader(FakeDataReader owner, string database) : ITableRowReader
+    {
+        public DataBridge.Core.Comparison.ReadConsistencyMode AchievedConsistency => DataBridge.Core.Comparison.ReadConsistencyMode.ReadCommitted;
+
+        public async IAsyncEnumerable<IReadOnlyList<DataBridge.Core.Comparison.DataRow>> ReadRowsAsync(
+            TableReadRequest request,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref owner._readsStarted);
+            var rows = owner.Rows.GetValueOrDefault(database)?.GetValueOrDefault(request.TableId.ObjectName) ?? [];
+            foreach (var batch in rows.Chunk(request.BatchSize))
+            {
+                if (owner.BatchGate is { } gate)
+                {
+                    await gate.Task.WaitAsync(cancellationToken);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return batch;
+            }
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

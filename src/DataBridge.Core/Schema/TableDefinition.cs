@@ -36,6 +36,7 @@ public sealed record TableDefinition(
 /// <param name="CollationName">For character types only.</param>
 /// <param name="OrdinalPosition">The 1-based position among the table's columns (gaps from dropped columns removed).</param>
 /// <param name="Options">Storage, security and engine-managed attributes; <see langword="null"/> means none.</param>
+/// <param name="ProviderBaseTypeName">For a user-defined alias type, the system type it is based on; not compared.</param>
 public sealed record ColumnDefinition(
     string Name,
     string SqlTypeName,
@@ -48,7 +49,8 @@ public sealed record ColumnDefinition(
     ComputedSpecification? Computed,
     string? CollationName,
     int OrdinalPosition,
-    ColumnOptions? Options = null)
+    ColumnOptions? Options = null,
+    string? ProviderBaseTypeName = null)
 {
     public ColumnOptions EffectiveOptions => Options ?? ColumnOptions.None;
 }

@@ -1,0 +1,246 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DataBridge.Desktop.ViewModels"
+             x:Class="DataBridge.Desktop.Views.DataComparisonView"
+             x:DataType="vm:DataComparisonViewModel">
+
+  <DockPanel>
+
+    <!-- Route sign: what the servers reported. Data comparison reads both sides only. -->
+    <Border Classes="route-sign" Classes.alert="{Binding IsSameDatabase}" DockPanel.Dock="Top"
+            IsVisible="{Binding HasIdentities}">
+      <Grid ColumnDefinitions="*,Auto,Auto,*">
+        <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+          <TextBlock Classes="label" Text="SOURCE · READ ONLY" />
+          <TextBlock Classes="display" Text="{Binding SourceIdentity.DatabaseName}" TextTrimming="CharacterEllipsis"
+                     ToolTip.Tip="{Binding SourceIdentity.DatabaseName}" />
+          <TextBlock Classes="detail" TextTrimming="CharacterEllipsis">
+            <Run Text="{Binding SourceIdentity.ServerName}" /><Run Text=" · " /><Run Text="{Binding SourceIdentity.ServerVersion}" />
+          </TextBlock>
+        </StackPanel>
+        <PathIcon Grid.Column="1" Classes="sign-arrow" Margin="24,0" VerticalAlignment="Center" />
+        <Rectangle Grid.Column="2" Classes="sign-rule" />
+        <StackPanel Grid.Column="3" Spacing="4" VerticalAlignment="Center">
+          <TextBlock Classes="label" Text="TARGET · READ ONLY" />
+          <TextBlock Classes="display" Text="{Binding TargetIdentity.DatabaseName}" TextTrimming="CharacterEllipsis"
+                     ToolTip.Tip="{Binding TargetIdentity.DatabaseName}" />
+          <TextBlock Classes="detail" TextTrimming="CharacterEllipsis">
+            <Run Text="{Binding TargetIdentity.ServerName}" /><Run Text=" · " /><Run Text="{Binding TargetIdentity.ServerVersion}" />
+          </TextBlock>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Toolbar: profiles, load tables, compare. -->
+    <Border Classes="toolbar" DockPanel.Dock="Top">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Classes="accent" VerticalAlignment="Center" Content="Compare data"
+                Command="{Binding CompareCommand}" HotKey="Ctrl+R"
+                ToolTip.Tip="Read the selected tables on both sides and compare their rows (Ctrl+R). Neither database is changed." />
+        <Button DockPanel.Dock="Right" Margin="0,0,8,0" VerticalAlignment="Center" Content="Load tables"
+                Command="{Binding LoadTablesCommand}" HotKey="Ctrl+L"
+                ToolTip.Tip="Read both schemas and list the tables with how their rows are matched (Ctrl+L)." />
+        <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+          <TextBlock Classes="title" Text="Data comparison" VerticalAlignment="Center" />
+          <Label Content="_Source" Target="SourcePicker" VerticalAlignment="Center" />
+          <ComboBox x:Name="SourcePicker" Width="220" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedSource}"
+                    IsEnabled="{Binding IsIdle}" PlaceholderText="Choose a profile" AutomationProperties.Name="Source profile" />
+          <Label Content="_Target" Target="TargetPicker" VerticalAlignment="Center" />
+          <ComboBox x:Name="TargetPicker" Width="220" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedTarget}"
+                    IsEnabled="{Binding IsIdle}" PlaceholderText="Choose a profile" AutomationProperties.Name="Target profile" />
+          <TextBlock Classes="caption caution" Text="{Binding SelectionHint}" VerticalAlignment="Center"
+                     IsVisible="{Binding SelectionHint, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Status bar: progress with Cancel while running, otherwise the summary. -->
+    <Border Classes="statusbar" DockPanel.Dock="Bottom" MinHeight="32">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="16" IsVisible="{Binding IsBusy}">
+          <ProgressBar IsIndeterminate="True" Width="120" VerticalAlignment="Center" />
+          <Button Content="Cancel" Command="{Binding CancelBusyCommand}" HotKey="Escape" />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Right" Classes="caption numeric" Margin="16,0" Text="{Binding SummaryText}" VerticalAlignment="Center" />
+        <TextBlock Classes="caption" Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      </DockPanel>
+    </Border>
+
+    <DockPanel Margin="24">
+
+      <StackPanel DockPanel.Dock="Top">
+        <Border Classes="callout danger" Margin="0,0,0,12" IsVisible="{Binding IsSameDatabase}">
+          <ContentControl Classes="signal blocked">
+            <TextBlock TextWrapping="Wrap" FontWeight="Bold"
+                       Text="Both profiles resolve to the same database, so every row compares equal to itself." />
+          </ContentControl>
+        </Border>
+        <Border Classes="callout danger" Margin="0,0,0,12" IsVisible="{Binding ComparisonError, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <StackPanel Spacing="4">
+            <ContentControl Classes="signal blocked">
+              <TextBlock FontWeight="Bold" Text="The data could not be compared" />
+            </ContentControl>
+            <TextBlock Text="{Binding ComparisonError}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+        <Border Classes="callout danger" Margin="0,0,0,12" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <ContentControl Classes="signal blocked">
+            <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
+          </ContentControl>
+        </Border>
+        <!-- FR-DAT-014: say when a table was not read from one point in time. -->
+        <Border Classes="callout" Margin="0,0,0,12" IsVisible="{Binding HasNonSnapshotReads}">
+          <ContentControl Classes="signal warning">
+            <TextBlock TextWrapping="Wrap"
+                       Text="Some tables were read without a snapshot (snapshot isolation is not enabled on the database), so rows changed during the read can show as differences. The two databases are never read at the same point in time." />
+          </ContentControl>
+        </Border>
+      </StackPanel>
+
+      <Grid ColumnDefinitions="380,16,*,16,360" IsVisible="{Binding HasTables}">
+
+        <!-- Tables to compare, with keys and options. -->
+        <Border Classes="panel" Grid.Column="0" Padding="0">
+          <DockPanel>
+            <TextBlock Classes="label" DockPanel.Dock="Top" Margin="16,12" Text="TABLES" />
+            <StackPanel DockPanel.Dock="Bottom" Margin="16" Spacing="8">
+              <Grid ColumnDefinitions="*,8,120" RowDefinitions="Auto,8,Auto">
+                <Label Content="_Batch size" Target="BatchSizeBox" VerticalAlignment="Center" />
+                <NumericUpDown x:Name="BatchSizeBox" Grid.Column="2" Value="{Binding BatchSize}" Minimum="1" Maximum="100000" Increment="500"
+                               FormatString="0" ToolTip.Tip="Rows per batch on each side. Memory grows with it, not with table size." />
+                <Label Grid.Row="2" Content="Tables at _once" Target="ParallelismBox" VerticalAlignment="Center" />
+                <NumericUpDown x:Name="ParallelismBox" Grid.Row="2" Grid.Column="2" Value="{Binding Parallelism}" Minimum="1" Maximum="8"
+                               FormatString="0" ToolTip.Tip="Each table uses one connection per side." />
+              </Grid>
+              <CheckBox Content="Compare _binary columns" IsChecked="{Binding IncludeBinaryColumns}" />
+            </StackPanel>
+            <ListBox ItemsSource="{Binding Tables}" Background="Transparent" IsEnabled="{Binding IsIdle}"
+                     AutomationProperties.Name="Tables to compare">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:DataTableItem">
+                  <StackPanel Spacing="4" Margin="0,4">
+                    <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanCompare}">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}" />
+                    </CheckBox>
+                    <TextBlock Classes="caption muted" Text="{Binding Detail}" TextWrapping="Wrap" />
+                    <StackPanel Spacing="4" IsVisible="{Binding NeedsKey}">
+                      <TextBox Classes="code" Text="{Binding UserKey}" PlaceholderText="Key columns, in order, e.g. CustomerId, OrderDate"
+                               AutomationProperties.Name="Key columns" />
+                      <TextBlock Classes="caption muted" Text="{Binding CandidateKeyText}" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+
+        <!-- Results: one row per table, then the differing rows of the selected table (virtualized, capped). -->
+        <Grid Grid.Column="2" RowDefinitions="260,16,*" IsVisible="{Binding HasReport}">
+          <Border Classes="panel" Grid.Row="0" Padding="0">
+            <DataGrid Classes="two-line" ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult}"
+                      IsReadOnly="True" SelectionMode="Single" CanUserReorderColumns="False"
+                      AutomationProperties.Name="Table results">
+              <DataGrid.Columns>
+                <DataGridTemplateColumn Header="RESULT" Width="190" SortMemberPath="OutcomeText">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate x:DataType="vm:TableResultItem">
+                      <ContentControl Classes="signal" Margin="12,0" VerticalAlignment="Center"
+                                      Classes.cleared="{Binding IsCleared}" Classes.change="{Binding IsChange}"
+                                      Classes.blocked="{Binding IsBlocked}" Classes.excluded="{Binding IsExcluded}">
+                        <TextBlock Text="{Binding OutcomeText}" />
+                      </ContentControl>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="TABLE" Width="*" SortMemberPath="Name">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate x:DataType="vm:TableResultItem">
+                      <StackPanel Margin="12,0" VerticalAlignment="Center" Spacing="2">
+                        <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Name}" />
+                        <TextBlock Classes="secondary" Text="{Binding Detail}" ToolTip.Tip="{Binding Detail}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="READ" Width="200" Binding="{Binding ConsistencyText}" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </Border>
+
+          <Border Classes="panel" Grid.Row="2" Padding="0">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Top" Margin="16,12" Spacing="4">
+                <TextBlock Classes="label" Text="ROWS" />
+                <TextBlock Classes="caption muted" Text="{Binding SelectedResult.ShownText}" />
+              </StackPanel>
+              <DataGrid Classes="two-line" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                        IsReadOnly="True" SelectionMode="Single" CanUserReorderColumns="False"
+                        AutomationProperties.Name="Differing rows">
+                <DataGrid.Columns>
+                  <DataGridTemplateColumn Header="STATE" Width="170" SortMemberPath="StatusText">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate x:DataType="vm:RowDifferenceItem">
+                        <ContentControl Classes="signal" Margin="12,0" VerticalAlignment="Center"
+                                        Classes.add="{Binding IsAdd}" Classes.remove="{Binding IsRemove}" Classes.change="{Binding IsChange}">
+                          <TextBlock Text="{Binding StatusText}" />
+                        </ContentControl>
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTemplateColumn Header="KEY" Width="*" SortMemberPath="KeyText">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate x:DataType="vm:RowDifferenceItem">
+                        <StackPanel Margin="12,0" VerticalAlignment="Center" Spacing="2">
+                          <TextBlock Classes="code" Text="{Binding KeyText}" ToolTip.Tip="{Binding KeyText}" />
+                          <TextBlock Classes="secondary" Text="{Binding Detail}" ToolTip.Tip="{Binding Detail}" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                </DataGrid.Columns>
+              </DataGrid>
+            </DockPanel>
+          </Border>
+        </Grid>
+
+        <!-- The selected row's columns, source then target. -->
+        <Border Classes="panel" Grid.Column="4" IsVisible="{Binding HasReport}">
+          <Panel>
+            <TextBlock Classes="muted" TextWrapping="Wrap" IsVisible="{Binding !HasSelectedRow}"
+                       Text="Select a row to see its values." />
+            <ScrollViewer IsVisible="{Binding HasSelectedRow}" HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="12">
+                <TextBlock Classes="subtitle code" Text="{Binding SelectedRow.KeyText}" TextWrapping="Wrap" />
+                <TextBlock Classes="caption muted" Text="{Binding SelectedRow.StatusText}" />
+                <ItemsControl ItemsSource="{Binding SelectedRow.Columns}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ColumnValueItem">
+                      <StackPanel Spacing="4" Margin="0,0,0,12">
+                        <TextBlock FontWeight="SemiBold" Text="{Binding ColumnName}" />
+                        <TextBlock Classes="label" Text="SOURCE" />
+                        <Border Classes="sunken">
+                          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <SelectableTextBlock Classes="code" Text="{Binding SourceValue}" />
+                          </ScrollViewer>
+                        </Border>
+                        <TextBlock Classes="label" Text="TARGET" />
+                        <Border Classes="sunken">
+                          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <SelectableTextBlock Classes="code" Text="{Binding TargetValue}" />
+                          </ScrollViewer>
+                        </Border>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </ScrollViewer>
+          </Panel>
+        </Border>
+      </Grid>
+    </DockPanel>
+
+  </DockPanel>
+
+</UserControl>

@@ -145,5 +145,7 @@ public sealed class TestConnectionTests
         public IDatabaseProvider GetProvider(DatabaseProviderType providerType) => provider;
 
         public ISchemaReader GetSchemaReader(DatabaseProviderType providerType) => throw new NotSupportedException();
+
+        public IDataReaderProvider GetDataReader(DatabaseProviderType providerType) => throw new NotSupportedException();
     }
 }

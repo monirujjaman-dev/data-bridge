@@ -19,6 +19,7 @@ public static class DesktopServiceCollectionExtensions
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<ConnectionsViewModel>();
         services.AddSingleton<SchemaComparisonViewModel>();
+        services.AddSingleton<DataComparisonViewModel>();
         return services;
     }
 

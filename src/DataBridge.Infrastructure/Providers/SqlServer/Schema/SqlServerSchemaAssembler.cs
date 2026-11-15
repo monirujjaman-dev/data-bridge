@@ -203,7 +203,8 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
             Computed: row.IsComputed ? new ComputedSpecification(row.ComputedDefinition, row.IsPersisted) : null,
             CollationName: row.Collation,
             OrdinalPosition: ordinal,
-            Options: row.Options == ColumnOptions.None ? null : row.Options);
+            Options: row.Options == ColumnOptions.None ? null : row.Options,
+            ProviderBaseTypeName: row.IsUserDefined ? row.BaseTypeName : null);
     }
 
     private void AddIndexes()

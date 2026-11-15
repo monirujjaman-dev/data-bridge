@@ -18,8 +18,10 @@ paths:
 -   Preserve identity seed/increment, computed expressions, defaults,
     collation, precision, scale, nullability and relevant SQL
     Server-specific metadata.
--   Handle composite keys with lexicographic keyset continuation
-    predicates.
+-   Read rows with one ordered streaming query per table and side, and
+    verify in the merge that keys strictly increase (ADR-0014). Keyset
+    continuation predicates, if added later, must be lexicographic over
+    composite keys.
 -   Fingerprint serialization must be unambiguous, typed,
     length-prefixed and NULL-aware. Hashes are an optimization, not
     proof of equality.

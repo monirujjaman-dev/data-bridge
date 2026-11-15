@@ -19,19 +19,27 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly ILocalDataStore _localDataStore;
     private readonly ConnectionsViewModel _connections;
     private readonly SchemaComparisonViewModel _schemaComparison;
+    private readonly DataComparisonViewModel _dataComparison;
     private readonly ILogger<MainWindowViewModel> _logger;
 
     public MainWindowViewModel(
         ILocalDataStore localDataStore,
         ConnectionsViewModel connections,
         SchemaComparisonViewModel schemaComparison,
+        DataComparisonViewModel dataComparison,
         ILogger<MainWindowViewModel> logger)
     {
         _localDataStore = localDataStore;
         _connections = connections;
         _schemaComparison = schemaComparison;
+        _dataComparison = dataComparison;
         _logger = logger;
-        NavigationItems = [new NavigationItem("Connections", connections), new NavigationItem("Schema comparison", schemaComparison)];
+        NavigationItems =
+        [
+            new NavigationItem("Connections", connections),
+            new NavigationItem("Schema comparison", schemaComparison),
+            new NavigationItem("Data comparison", dataComparison),
+        ];
         SelectedNavigationItem = NavigationItems[0];
     }
 
@@ -88,9 +96,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// <summary>Profiles may have changed on another page, so the comparison page reloads them when shown.</summary>
     partial void OnSelectedNavigationItemChanged(NavigationItem? value)
     {
-        if (IsReady && value?.Page == _schemaComparison && _schemaComparison.LoadCommand.CanExecute(null))
+        if (!IsReady)
+        {
+            return;
+        }
+
+        if (value?.Page == _schemaComparison && _schemaComparison.LoadCommand.CanExecute(null))
         {
             _schemaComparison.LoadCommand.Execute(null);
+        }
+        else if (value?.Page == _dataComparison && _dataComparison.LoadCommand.CanExecute(null))
+        {
+            _dataComparison.LoadCommand.Execute(null);
         }
     }
 }

@@ -38,4 +38,7 @@ public interface IDatabaseProviderFactory
 
     /// <exception cref="NotSupportedException">No schema reader is registered for <paramref name="providerType"/>.</exception>
     ISchemaReader GetSchemaReader(DatabaseProviderType providerType);
+
+    /// <exception cref="NotSupportedException">No data reader is registered for <paramref name="providerType"/>.</exception>
+    IDataReaderProvider GetDataReader(DatabaseProviderType providerType);
 }
