@@ -70,6 +70,64 @@ public sealed class SqlServerFixture : IAsyncLifetime
         Assert.Skip($"No SQL Server container (Docker unavailable?): {UnavailableReason}");
     }
 
+    /// <summary>An <c>sa</c> connection string for <paramref name="database"/>, for tests that drive a connection themselves.</summary>
+    public string ConnectionString(string database) =>
+        new SqlConnectionStringBuilder(Container.GetConnectionString()) { InitialCatalog = database }.ConnectionString;
+
+    /// <summary>
+    /// Creates an empty database named exactly <paramref name="name"/>, which may contain line breaks, quotes and other
+    /// text tools act on (but not <c>]</c>). Its files get generated names, so the name never becomes a path.
+    /// </summary>
+    public async Task CreateNamedDatabaseAsync(string name, string? collation, CancellationToken cancellationToken)
+    {
+        var path = (await QueryRowAsync("master", "SELECT CONVERT(nvarchar(260), SERVERPROPERTY('InstanceDefaultDataPath'))", cancellationToken)).TrimEnd('/');
+        var file = $"DataBridgeTest_{Guid.NewGuid():N}";
+        await ExecuteOneBatchAsync(
+            $"CREATE DATABASE [{name}] ON (NAME = N'{file}', FILENAME = N'{path}/{file}.mdf') LOG ON (NAME = N'{file}_log', FILENAME = N'{path}/{file}.ldf')"
+            + (collation is null ? "" : $" COLLATE {collation}") + ";",
+            cancellationToken);
+    }
+
+    /// <summary>Drops a database created by a test, closing pooled connections to it first.</summary>
+    public async Task DropDatabaseAsync(string name, CancellationToken cancellationToken)
+    {
+        SqlConnection.ClearAllPools();
+        var literal = name.Replace("'", "''", StringComparison.Ordinal);
+        await ExecuteOneBatchAsync(
+            $"IF DB_ID(N'{literal}') IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END;",
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="sql"/> in <c>master</c> as one batch, never splitting on <c>GO</c>, for SQL that holds a
+    /// name which may itself contain a <c>GO</c> line.
+    /// </summary>
+    private async Task ExecuteOneBatchAsync(string sql, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(ConnectionString("master"));
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="script"/> with the container's own <c>sqlcmd</c> as <c>sa</c>, from a UTF-8 file, in
+    /// <paramref name="database"/> (a plain name). With <paramref name="abortOnError"/> it passes <c>-b</c>.
+    /// </summary>
+    public async Task<(long ExitCode, string Output)> RunSqlcmdAsync(string database, string script, bool abortOnError, CancellationToken cancellationToken)
+    {
+        var file = $"/tmp/{Guid.NewGuid():N}.sql";
+        await Container.CopyAsync(System.Text.Encoding.UTF8.GetBytes(script), file, ct: cancellationToken);
+        // mssql-tools18 needs -C to trust the container's self-signed certificate; the older tools have no such flag.
+        var command = $"""
+            if [ -x /opt/mssql-tools18/bin/sqlcmd ]; then S=/opt/mssql-tools18/bin/sqlcmd; X=-C; else S=/opt/mssql-tools/bin/sqlcmd; X=; fi
+            "$S" $X -S localhost -U sa -P '{AdminPassword}' -d '{database}' -f 65001 {(abortOnError ? "-b" : "")} -i {file}
+            """;
+        var result = await Container.ExecAsync(["/bin/sh", "-c", command], cancellationToken);
+        return (result.ExitCode ?? -1, result.Stdout + result.Stderr);
+    }
+
     /// <summary>Creates an empty database with a unique, safe name and returns the name.</summary>
     public async Task<string> CreateDatabaseAsync(CancellationToken cancellationToken)
     {

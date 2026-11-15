@@ -73,7 +73,9 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
         Comment(script, $"Created:      {plan.CreatedAtUtc.ToString("u", CultureInfo.InvariantCulture)}");
         Comment(script, "Review only. Running this script yourself bypasses DataBridge's approval, revalidation and drift checks.");
         Comment(script, "There is no transaction around the whole script; a failure part-way leaves earlier steps applied.");
-        Comment(script, "It stops unless the database name, server name and database GUID match, so it also stops after a failover or a restore.");
+        Comment(script, "It stops unless the database name, server name and database GUID match. A failover to another server stops it;");
+        Comment(script, "a restore over the same database keeps the GUID (unless restored WITH NEW_BROKER) and does not.");
+        Comment(script, "A stopped script leaves SET NOEXEC ON in the session; run SET NOEXEC OFF before using it for anything else.");
         script.AppendLine();
         var hazardous = plan.Operations
             .Where(operation => !operation.IsDataOperation && operation.SqlBatches.Any(batch => ScriptHazard(batch) is not null))
@@ -87,16 +89,23 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
             script.AppendLine("GO");
         }
 
-        // The database name, the server and (when known) the database GUID must all match the planned write target.
-        script.AppendLine(CultureInfo.InvariantCulture, $"IF DB_NAME() COLLATE Latin1_General_BIN2 <> {Literal(plan.WriteTargetDatabaseName)} COLLATE Latin1_General_BIN2");
-        script.AppendLine(CultureInfo.InvariantCulture, $"    OR UPPER(CONVERT(nvarchar(256), SERVERPROPERTY('ServerName'))) COLLATE Latin1_General_BIN2 <> UPPER({Literal(plan.WriteTargetServerName)}) COLLATE Latin1_General_BIN2");
+        // The database name, the server and (when known) the database GUID must all match the planned write target. The
+        // names come from the server and can contain anything, including line breaks and "$(", which SSMS and sqlcmd
+        // would act on, so they are written as hex that those tools cannot read into. The test is written as "not all of
+        // these hold", so a NULL anywhere refuses rather than passes. The server name is upper-cased under one fixed
+        // collation on both sides, so the current database's collation (Turkish, for example) cannot map them differently.
+        script.AppendLine(CultureInfo.InvariantCulture, $"DECLARE @Database nvarchar(128) = {HexText(plan.WriteTargetDatabaseName, 128)},");
+        script.AppendLine(CultureInfo.InvariantCulture, $"    @Server nvarchar(256) = {HexText(plan.WriteTargetServerName, 256)};");
+        script.AppendLine("IF NOT (DB_NAME() COLLATE Latin1_General_100_BIN2 = @Database COLLATE Latin1_General_100_BIN2");
+        script.AppendLine("    AND UPPER(CONVERT(nvarchar(256), SERVERPROPERTY('ServerName')) COLLATE Latin1_General_100_BIN2) = UPPER(@Server COLLATE Latin1_General_100_BIN2)");
         if (plan.WriteTargetDatabaseGuid is { } guid)
         {
-            script.AppendLine(CultureInfo.InvariantCulture, $"    OR NOT EXISTS (SELECT 1 FROM sys.databases WHERE database_id = DB_ID() AND service_broker_guid = '{guid:D}')");
+            script.AppendLine(CultureInfo.InvariantCulture, $"    AND EXISTS (SELECT 1 FROM sys.databases WHERE database_id = DB_ID() AND service_broker_guid = '{guid:D}')");
         }
 
+        script.AppendLine(")");
         script.AppendLine("BEGIN");
-        script.AppendLine(CultureInfo.InvariantCulture, $"    RAISERROR(N'This script must run in database %s on server %s.', 16, 1, {Literal(plan.WriteTargetDatabaseName)}, {Literal(plan.WriteTargetServerName)});");
+        script.AppendLine("    RAISERROR(N'This script must run in database %s on server %s.', 16, 1, @Database, @Server);");
         script.AppendLine("    SET NOEXEC ON;");
         script.AppendLine("END");
         script.AppendLine("GO");
@@ -668,6 +677,23 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
 
     private static string Literal(string value) => $"N'{value.Replace("'", "''", StringComparison.Ordinal)}'";
 
+    /// <summary>
+    /// <paramref name="value"/> as <c>CAST(0x... AS nvarchar(length))</c> over its UTF-16 code units, low byte first:
+    /// an expression with no text a script tool could take as a line, separator or variable, whatever the value holds.
+    /// The units are written exactly, without an encoder, because an encoder replaces an unpaired surrogate (which a
+    /// SQL Server name can contain) with U+FFFD and so would name a different database.
+    /// </summary>
+    internal static string HexText(string value, int length)
+    {
+        var hex = new StringBuilder(value.Length * 4);
+        foreach (var unit in value)
+        {
+            hex.Append(CultureInfo.InvariantCulture, $"{unit & 0xFF:X2}{unit >> 8:X2}");
+        }
+
+        return $"CAST(0x{hex} AS nvarchar({Number(length)}))";
+    }
+
     private static string OnOff(bool value) => value ? "ON" : "OFF";
 
     private static string Number(long value) => value.ToString(CultureInfo.InvariantCulture);
@@ -685,7 +711,8 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
                     span[index] = char.IsControl(character) || character is LineSeparator or ParagraphSeparator ? ' ' : character;
                 }
             });
-            script.Append("-- ").AppendLine(safe.TrimEnd());
+            // SQLCMD mode substitutes $(name) even inside comments, so the pair is broken up.
+            script.Append("-- ").AppendLine(safe.Replace("$(", "$ (", StringComparison.Ordinal).TrimEnd());
         }
     }
 

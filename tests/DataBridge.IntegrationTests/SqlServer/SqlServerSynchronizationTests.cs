@@ -232,6 +232,194 @@ public sealed class SqlServerSynchronizationTests(SqlServerFixture server)
         Assert.True(await command.ExecuteNonQueryAsync(Token) >= 1, "The template changed no row.");
     }
 
+    [Fact]
+    public async Task The_exported_script_runs_only_in_its_write_target_and_not_at_all_with_a_hazardous_operation()
+    {
+        server.RequireServer();
+        var target = $"DataBridgeTest_{Guid.NewGuid():N}_O'Brien_Ünï";
+        await server.CreateNamedDatabaseAsync(target, null, Token);
+        try
+        {
+            var other = await CreateDatabaseAsync("");
+            var identity = await IdentityAsync(target);
+            var safe = ScriptFor(identity, "CREATE TABLE dbo.Probe (Id int);");
+            var hazardous = ScriptFor(identity, "CREATE TABLE dbo.Probe (Id int);", "CREATE TABLE dbo.Other (Id int CONSTRAINT DF_Other DEFAULT (0x0A) /*\nGO\n*/);");
+
+            Assert.Contains(await RunLikeSsmsAsync(other, safe), message => message.Contains("This script must run in database", StringComparison.Ordinal));
+            Assert.Equal(0, await TableCountAsync(other));
+
+            Assert.Contains(await RunLikeSsmsAsync(target, hazardous), message => message.Contains("cannot be shown as runnable SQL", StringComparison.Ordinal));
+            Assert.Equal(0, await TableCountAsync(target));
+
+            Assert.Empty(await RunLikeSsmsAsync(target, safe));
+            Assert.Equal(1, await TableCountAsync(target, "Probe"));
+        }
+        finally
+        {
+            await server.DropDatabaseAsync(target, Token);
+        }
+    }
+
+    [Fact]
+    public async Task A_hostile_database_name_cannot_add_statements_to_the_exported_script()
+    {
+        server.RequireServer();
+        var target = $"DataBridgeTest_{Guid.NewGuid():N}\nGO\nCREATE TABLE dbo.Injected (Id int)\n-- $(Secret) 50% {char.ConvertFromUtf32(0x1F600)}";
+        await server.CreateNamedDatabaseAsync(target, null, Token);
+        try
+        {
+            var other = await CreateDatabaseAsync("");
+            var script = ScriptFor(await IdentityAsync(target), "CREATE TABLE dbo.Probe (Id int);");
+
+            Assert.Contains(await RunLikeSsmsAsync(other, script), message => message.Contains("This script must run in database", StringComparison.Ordinal));
+            Assert.Equal(0, await TableCountAsync(other));
+
+            Assert.Empty(await RunLikeSsmsAsync(target, script));
+            Assert.Equal(1, await TableCountAsync(target, "Probe"));
+            foreach (var database in new[] { other, target, "master" })
+            {
+                Assert.Equal(0, await TableCountAsync(database, "Injected"));
+            }
+        }
+        finally
+        {
+            await server.DropDatabaseAsync(target, Token);
+        }
+    }
+
+    [Fact]
+    public async Task The_guard_refuses_another_server_or_database_guid_and_ignores_server_name_case()
+    {
+        server.RequireServer();
+        var target = await CreateDatabaseAsync("");
+        var identity = await IdentityAsync(target);
+        ResolvedDatabaseIdentity With(string serverName, Guid? guid) =>
+            ResolvedDatabaseIdentity.Create(DatabaseProviderType.SqlServer, serverName, target, 5, "SQL Server 2022", null, guid);
+
+        Assert.NotEmpty(await RunLikeSsmsAsync(target, ScriptFor(With("another-server", identity.DatabaseGuid), "CREATE TABLE dbo.WrongServer (Id int);")));
+        Assert.NotEmpty(await RunLikeSsmsAsync(target, ScriptFor(With(identity.ServerName, Guid.NewGuid()), "CREATE TABLE dbo.WrongGuid (Id int);")));
+        Assert.Equal(0, await TableCountAsync(target));
+
+        Assert.Empty(await RunLikeSsmsAsync(target, ScriptFor(With(identity.ServerName.ToUpperInvariant(), identity.DatabaseGuid), "CREATE TABLE dbo.Upper (Id int);")));
+        Assert.Empty(await RunLikeSsmsAsync(target, ScriptFor(With(identity.ServerName.ToLowerInvariant(), identity.DatabaseGuid), "CREATE TABLE dbo.Lower (Id int);")));
+        Assert.Equal(2, await TableCountAsync(target));
+    }
+
+    [Fact]
+    public async Task The_guard_upper_cases_both_server_names_the_same_way_in_a_turkish_database()
+    {
+        server.RequireServer();
+        var target = $"DataBridgeTest_{Guid.NewGuid():N}";
+        await server.CreateNamedDatabaseAsync(target, "Turkish_CI_AS", Token);
+        try
+        {
+            // The database's own collation maps i to dotted I; the fixed collation in the guard maps it to I.
+            Assert.Equal("İ|I", await server.QueryRowAsync(target, "SELECT UPPER(N'i'), UPPER(N'i' COLLATE Latin1_General_100_BIN2)", Token));
+
+            var identity = await IdentityAsync(target);
+            Assert.Empty(await RunLikeSsmsAsync(target, ScriptFor(identity, "CREATE TABLE dbo.Probe (Id int);")));
+            Assert.Equal(1, await TableCountAsync(target, "Probe"));
+        }
+        finally
+        {
+            await server.DropDatabaseAsync(target, Token);
+        }
+    }
+
+    [Fact]
+    public async Task Sqlcmd_runs_the_exported_script_only_in_its_write_target_and_not_at_all_with_a_hazardous_operation()
+    {
+        server.RequireServer();
+        var target = await CreateDatabaseAsync("");
+        var other = await CreateDatabaseAsync("");
+        var identity = await IdentityAsync(target);
+        var safe = ScriptFor(identity, "CREATE TABLE dbo.Probe (Id int);");
+        var hazardous = ScriptFor(
+            identity,
+            "CREATE TABLE dbo.Probe (Id int);",
+            "CREATE TABLE dbo.Other (Id int CONSTRAINT DF_Other DEFAULT (0x0A) /*\nGO 2\n:connect elsewhere\n$(Secret)\n*/);");
+
+        var plain = await server.RunSqlcmdAsync(other, safe, abortOnError: false, Token);
+        Assert.Contains("This script must run in database", plain.Output, StringComparison.Ordinal);
+        var aborted = await server.RunSqlcmdAsync(other, safe, abortOnError: true, Token);
+        Assert.NotEqual(0, aborted.ExitCode);
+        Assert.Equal(0, await TableCountAsync(other));
+
+        var stopped = await server.RunSqlcmdAsync(target, hazardous, abortOnError: false, Token);
+        Assert.Contains("cannot be shown as runnable SQL", stopped.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("scripting variable", stopped.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, await TableCountAsync(target));
+
+        var ran = await server.RunSqlcmdAsync(target, safe, abortOnError: true, Token);
+        Assert.True(ran.ExitCode == 0, ran.Output);
+        Assert.Equal(1, await TableCountAsync(target, "Probe"));
+    }
+
+    /// <summary>The identity of <paramref name="database"/> as the server reports it, as a plan records it.</summary>
+    private async Task<ResolvedDatabaseIdentity> IdentityAsync(string database)
+    {
+        var literal = database.Replace("'", "''", StringComparison.Ordinal);
+        var row = (await server.QueryRowAsync(
+            "master",
+            $"SELECT CONVERT(nvarchar(256), SERVERPROPERTY('ServerName')), (SELECT service_broker_guid FROM sys.databases WHERE name = N'{literal}')",
+            Token)).Split('|');
+        return ResolvedDatabaseIdentity.Create(DatabaseProviderType.SqlServer, row[0], database, 5, "SQL Server 2022", null, Guid.Parse(row[1]));
+    }
+
+    /// <summary>An exported script for a plan writing to <paramref name="identity"/>, one operation per batch.</summary>
+    private string ScriptFor(ResolvedDatabaseIdentity identity, params string[] batches) => _generator.BuildScript(SynchronizationPlan.Create(
+        Guid.NewGuid(), Guid.NewGuid(), SynchronizationDirection.SourceToTarget, Guid.NewGuid(), identity, EnvironmentLabel.None, "schema",
+        SynchronizationPlanOptions.Default,
+        batches.Select((batch, order) => new SynchronizationOperation(
+            Guid.NewGuid(), order, new DatabaseObjectId("dbo", $"Probe{order}", DatabaseObjectType.Table), SynchronizationOperationType.CreateObject,
+            OperationRisk.Low, false, [], "Create probe", [batch], null, [])),
+        [], DateTimeOffset.UtcNow));
+
+    private async Task<int> TableCountAsync(string database, string? name = null) => int.Parse(
+        await server.QueryRowAsync(
+            database,
+            name is null ? "SELECT COUNT(*) FROM sys.tables" : $"SELECT COUNT(*) FROM sys.tables WHERE name = N'{name}'",
+            Token),
+        System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Runs a script as SSMS does: batches split on lines that are only <c>GO</c>, all on one connection (so
+    /// <c>SET NOEXEC ON</c> carries over), carrying on after a failed batch. Returns the error messages.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> RunLikeSsmsAsync(string database, string script)
+    {
+        var errors = new List<string>();
+        await using var connection = new SqlConnection(server.ConnectionString(database));
+        await connection.OpenAsync(Token);
+        var batch = new System.Text.StringBuilder();
+        foreach (var line in script.Split(["\r\n", "\n"], StringSplitOptions.None).Append("GO"))
+        {
+            if (!string.Equals(line.Trim(), "GO", StringComparison.OrdinalIgnoreCase))
+            {
+                batch.AppendLine(line);
+                continue;
+            }
+
+            if (batch.ToString().Trim().Length > 0)
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = batch.ToString();
+                try
+                {
+                    await command.ExecuteNonQueryAsync(Token);
+                }
+                catch (SqlException exception)
+                {
+                    errors.Add(exception.Message);
+                }
+            }
+
+            batch.Clear();
+        }
+
+        return errors;
+    }
+
     private async Task<(SynchronizationPlan Plan, AssembledPlan Assembled)> PlanAsync(string source, string target, bool allowDestructive)
     {
         var sourceSchema = await ReadAsync(source);
