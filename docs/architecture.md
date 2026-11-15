@@ -354,7 +354,9 @@ As implemented in Phase 5:
     UTF-16 code units) so that SSMS and sqlcmd cannot split or substitute
     into them. The guard is written as `IF NOT (all checks hold)`, so a
     NULL refuses, and upper-cases both server names under one fixed
-    collation. The plan also records the copied
+    collation. Each operation's SQL is shown as a comment and run as
+    `EXEC (@Batch)` over its exact text in hex, so no database text is
+    on a runnable line (ADR-0017). The plan also records the copied
     side's identity fingerprint; all of these are covered by the
     content hash.
 

@@ -95,26 +95,33 @@ public sealed class SqlServerSqlGeneratorTests
     }
 
     [Theory]
-    [InlineData(DatabaseObjectType.View, "sales", "v", null, "CREATE VIEW v AS SELECT 1", "CREATE VIEW [sales].v AS SELECT 1")]
-    [InlineData(DatabaseObjectType.View, "sales", "v", null, "create view [Sales].[v] as select 1", "create view [Sales].[v] as select 1")]
-    [InlineData(DatabaseObjectType.StoredProcedure, "dbo", "p", null, "/* c */ CREATE OR ALTER PROC \"p\" AS SELECT 1", "/* c */ CREATE OR ALTER PROC [dbo].\"p\" AS SELECT 1")]
-    [InlineData(DatabaseObjectType.ScalarFunction, "dbo", "Odd]Name", null, "CREATE FUNCTION [Odd]]Name]() RETURNS int AS BEGIN RETURN 1 END", "CREATE FUNCTION [dbo].[Odd]]Name]() RETURNS int AS BEGIN RETURN 1 END")]
-    [InlineData(DatabaseObjectType.Trigger, "dbo", "tr", "T", "CREATE TRIGGER tr ON T AFTER INSERT AS SELECT 1", "CREATE TRIGGER [dbo].tr ON [dbo].T AFTER INSERT AS SELECT 1")]
-    [InlineData(DatabaseObjectType.Trigger, "dbo", "tr", "T", "CREATE TRIGGER dbo . tr ON dbo.T AFTER INSERT AS SELECT 1", "CREATE TRIGGER dbo . tr ON dbo.T AFTER INSERT AS SELECT 1")]
+    [InlineData(DatabaseObjectType.View, "sales", "v", null, "CREATE VIEW v AS SELECT 1", "CREATE VIEW [sales].v AS SELECT 1", false)]
+    [InlineData(DatabaseObjectType.View, "sales", "v", null, "create view [Sales].[v] as select 1", "create view [Sales].[v] as select 1", false)]
+    [InlineData(DatabaseObjectType.StoredProcedure, "dbo", "p", null, "/* c */ CREATE OR ALTER PROC \"p\" AS SELECT 1", "/* c */ CREATE OR ALTER PROC [dbo].\"p\" AS SELECT 1", false)]
+    [InlineData(DatabaseObjectType.ScalarFunction, "dbo", "Odd]Name", null, "CREATE FUNCTION [Odd]]Name]() RETURNS int AS BEGIN RETURN 1 END", "CREATE FUNCTION [dbo].[Odd]]Name]() RETURNS int AS BEGIN RETURN 1 END", false)]
+    [InlineData(DatabaseObjectType.Trigger, "dbo", "tr", "T", "CREATE TRIGGER tr ON T AFTER INSERT AS SELECT 1", "CREATE TRIGGER [dbo].tr ON [dbo].T AFTER INSERT AS SELECT 1", false)]
+    [InlineData(DatabaseObjectType.Trigger, "dbo", "tr", "T", "CREATE TRIGGER dbo . tr ON dbo.T AFTER INSERT AS SELECT 1", "CREATE TRIGGER dbo . tr ON dbo.T AFTER INSERT AS SELECT 1", false)]
+    // In a case-insensitive database a header differing only in case (ALTER PROCEDURE dbo.MYPROC on MyProc) is the same object.
+    [InlineData(DatabaseObjectType.StoredProcedure, "dbo", "MyProc", null, "CREATE PROCEDURE DBO.MYPROC AS SELECT 1", "CREATE PROCEDURE DBO.MYPROC AS SELECT 1", false)]
+    [InlineData(DatabaseObjectType.Trigger, "Sales", "tr", "Orders", "CREATE TRIGGER tr ON orders AFTER INSERT AS SELECT 1", "CREATE TRIGGER [Sales].tr ON [Sales].orders AFTER INSERT AS SELECT 1", false)]
+    [InlineData(DatabaseObjectType.View, "Sales", "V", null, "CREATE VIEW [Sales].[V] AS SELECT 1", "CREATE VIEW [Sales].[V] AS SELECT 1", true)]
     public void Module_headers_are_qualified_with_the_planned_schema(
-        DatabaseObjectType type, string schema, string name, string? parent, string definition, string expected) =>
-        Assert.Equal(expected, SqlServerSqlGenerator.QualifyHeader(definition, new DatabaseObjectId(schema, name, type, parent)));
+        DatabaseObjectType type, string schema, string name, string? parent, string definition, string expected, bool caseSensitive) =>
+        Assert.Equal(expected, SqlServerSqlGenerator.QualifyHeader(definition, new DatabaseObjectId(schema, name, type, parent), caseSensitive));
 
     [Theory]
-    [InlineData(DatabaseObjectType.View, null, "CREATE VIEW old_name AS SELECT 1")]
-    [InlineData(DatabaseObjectType.View, null, "CREATE VIEW other.v AS SELECT 1")]
-    [InlineData(DatabaseObjectType.View, null, "CREATE PROCEDURE v AS SELECT 1")]
-    [InlineData(DatabaseObjectType.Trigger, "T", "CREATE TRIGGER v ON Other AFTER INSERT AS SELECT 1")]
-    [InlineData(DatabaseObjectType.View, null, "CREATE VIEW dbo.V AS SELECT 1")]
-    public void A_module_whose_header_names_another_object_is_refused(DatabaseObjectType type, string? parent, string definition)
+    [InlineData(DatabaseObjectType.View, null, "CREATE VIEW old_name AS SELECT 1", false)]
+    [InlineData(DatabaseObjectType.View, null, "CREATE VIEW other.v AS SELECT 1", false)]
+    [InlineData(DatabaseObjectType.View, null, "CREATE PROCEDURE v AS SELECT 1", false)]
+    [InlineData(DatabaseObjectType.Trigger, "T", "CREATE TRIGGER v ON Other AFTER INSERT AS SELECT 1", false)]
+    // In a case-sensitive database a case variant is a different object, for any part of the name.
+    [InlineData(DatabaseObjectType.View, null, "CREATE VIEW dbo.V AS SELECT 1", true)]
+    [InlineData(DatabaseObjectType.View, null, "CREATE VIEW DBO.v AS SELECT 1", true)]
+    [InlineData(DatabaseObjectType.Trigger, "T", "CREATE TRIGGER v ON dbo.t AFTER INSERT AS SELECT 1", true)]
+    public void A_module_whose_header_names_another_object_is_refused(DatabaseObjectType type, string? parent, string definition, bool caseSensitive)
     {
         var id = new DatabaseObjectId("dbo", "v", type, parent);
-        var detail = new CreateModuleDetail(id, new ModuleDefinition(definition, false, false, true, true), IsAlter: false);
+        var detail = new CreateModuleDetail(id, new ModuleDefinition(definition, false, false, true, true), IsAlter: false, caseSensitive);
 
         Assert.True(_generator.Generate(new PlannedChange(id, SynchronizationOperationType.CreateObject, OperationRisk.Low, false, "test", [], 0, detail)).IsFailure);
     }
@@ -157,7 +164,7 @@ public sealed class SqlServerSqlGeneratorTests
     }
 
     [Fact]
-    public void A_script_with_a_hazardous_batch_stops_at_the_top_and_shows_that_batch_commented_out()
+    public void Every_batch_runs_through_exec_over_hex_with_a_readable_copy_as_a_comment()
     {
         var hostile = new DatabaseObjectId("dbo", "x\nGO\nDROP TABLE dbo.Victim;\n--", DatabaseObjectType.Table);
         var table = new TableDefinition(hostile, [Column("Id")], null, [], [], [], [], []);
@@ -171,11 +178,34 @@ public sealed class SqlServerSqlGeneratorTests
 
         var lines = _generator.BuildScript(plan).ReplaceLineEndings("\n").Split('\n');
 
-        var firstStatement = lines.First(line => line.Length > 0 && !line.StartsWith("--", StringComparison.Ordinal));
-        Assert.StartsWith("RAISERROR(N'This script contains definitions that cannot be shown", firstStatement, StringComparison.Ordinal);
-        Assert.Equal("SET NOEXEC ON;", lines[Array.IndexOf(lines, firstStatement) + 1]);
+        var batch = Assert.Single(create);
+        var exec = Array.IndexOf(lines, "EXEC (@Batch);");
+        Assert.Equal($"DECLARE @Batch nvarchar(max) = {SqlServerSqlGenerator.HexText(batch)};", lines[exec - 1]);
+        Assert.Equal("GO", lines[exec + 1]);
+        Assert.Contains("-- CREATE TABLE [dbo].[x", lines);
+        Assert.Contains("-- DROP TABLE dbo.Victim;", lines);
         Assert.DoesNotContain(lines, line => line.StartsWith("DROP TABLE", StringComparison.Ordinal) || line.StartsWith("CREATE TABLE", StringComparison.Ordinal));
-        Assert.Contains(lines, line => line.Contains("Not runnable from this script", StringComparison.Ordinal));
+        Assert.Equal(2, lines.Count(line => line == "GO"));
+    }
+
+    [Fact]
+    public void A_modules_session_options_run_at_session_level_and_its_definition_through_exec()
+    {
+        var id = new DatabaseObjectId("dbo", "p", DatabaseObjectType.StoredProcedure);
+        var definition = "CREATE PROCEDURE p AS\nSELECT 1 /* /* nested */\nGO\n*/; SET NOEXEC OFF;";
+        var batches = Generate(new CreateModuleDetail(id, new ModuleDefinition(definition, false, false, UsesAnsiNulls: true, UsesQuotedIdentifier: false), IsAlter: false));
+        var plan = SynchronizationPlan.Create(
+            Guid.NewGuid(), Guid.NewGuid(), SynchronizationDirection.SourceToTarget, Guid.NewGuid(),
+            ResolvedDatabaseIdentity.Create(DatabaseProviderType.SqlServer, "db01", "Sales", 5, "SQL Server 2022", null), EnvironmentLabel.None,
+            "schema", SynchronizationPlanOptions.Default,
+            [new SynchronizationOperation(Guid.NewGuid(), 0, id, SynchronizationOperationType.CreateObject, OperationRisk.Low, false, [], "Create procedure", batches, null, [])],
+            [], DateTimeOffset.UnixEpoch);
+
+        var script = _generator.BuildScript(plan).ReplaceLineEndings("\n");
+
+        Assert.Contains("\nSET ANSI_NULLS ON;\nSET QUOTED_IDENTIFIER OFF;\nGO\n", script, StringComparison.Ordinal);
+        Assert.Contains($"DECLARE @Batch nvarchar(max) = {SqlServerSqlGenerator.HexText(batches[1])};\nEXEC (@Batch);\nGO\n", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("\nSET NOEXEC OFF", script, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -303,7 +333,8 @@ public sealed class SqlServerSqlGeneratorTests
         Assert.Contains("SET NOEXEC ON;", script, StringComparison.Ordinal);
         Assert.Contains(plan.ContentHash, script, StringComparison.Ordinal);
         Assert.Contains("(Production)", script, StringComparison.Ordinal);
-        Assert.Contains("CREATE TABLE x (Id int);\nGO", script.ReplaceLineEndings("\n"), StringComparison.Ordinal);
+        var create = SqlServerSqlGenerator.HexText("CREATE TABLE x (Id int);");
+        Assert.Contains($"-- CREATE TABLE x (Id int);\nDECLARE @Batch nvarchar(max) = {create};\nEXEC (@Batch);\nGO", script.ReplaceLineEndings("\n"), StringComparison.Ordinal);
         Assert.Contains("--    INSERT INTO x VALUES (@p0);", script, StringComparison.Ordinal);
         Assert.DoesNotContain("\nINSERT INTO x", script.ReplaceLineEndings("\n"), StringComparison.Ordinal);
         Assert.Contains("-- - Not this one", script, StringComparison.Ordinal);
