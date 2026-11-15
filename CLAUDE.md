@@ -15,8 +15,9 @@ and Entra ID deferred, ADR-0010) is merged. Phase 3 (schema metadata
 and comparison) is complete: v1 object scope in ADR-0012, no DacFx
 (ADR-0013). Phase 4 (data comparison) is complete: key ordering and
 row streaming in ADR-0014. Phase 5 (synchronization planning and SQL
-generation) is next. Read these before implementing; they are the
-source of truth:
+generation) is in progress: environment labels in ADR-0015, data
+operations in ADR-0016, schema synchronization scope in ADR-0017.
+Read these before implementing; they are the source of truth:
 
 -   `docs/requirements.md`: product scope, user journeys, acceptance
     criteria, v1.0 vs deferred features.

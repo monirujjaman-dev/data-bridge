@@ -114,6 +114,8 @@ internal sealed class SqlServerCatalog
 
     public Dictionary<int, ModuleRow> Modules { get; } = [];
 
+    public Dictionary<int, List<ModuleReference>> ModuleReferences { get; } = [];
+
     public Dictionary<int, TriggerRow> Triggers { get; } = [];
 
     public Dictionary<int, SequenceRow> Sequences { get; } = [];
@@ -145,6 +147,19 @@ internal sealed class SqlServerCatalog
         await ForEachAsync(reader, row => catalog.CheckConstraints.Add(ReadCheck(row)), cancellationToken);
         await ForEachAsync(reader, row => catalog.DefaultConstraints.Add(ReadDefault(row)), cancellationToken);
         await ForEachAsync(reader, row => catalog.Modules.Add(Int(row, 0), ReadModule(row)), cancellationToken);
+        await ForEachAsync(
+            reader,
+            row =>
+            {
+                var id = Int(row, 0);
+                if (!catalog.ModuleReferences.TryGetValue(id, out var references))
+                {
+                    catalog.ModuleReferences[id] = references = [];
+                }
+
+                references.Add(new ModuleReference(row.GetString(1), row.GetString(2)));
+            },
+            cancellationToken);
         await ForEachAsync(
             reader,
             row => catalog.Triggers.Add(Int(row, 0), new(Int(row, 0), new TriggerOptions(Bool(row, 1), Bool(row, 2)))),

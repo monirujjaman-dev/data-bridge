@@ -14,10 +14,11 @@ public sealed record ConnectionProfileItem(DatabaseConnection Profile)
 
     public string Name => Profile.Name;
 
-    /// <summary>The second line: server, database and authentication.</summary>
+    /// <summary>The second line: server, database, authentication and environment label.</summary>
     public string Detail =>
         $"{Profile.Server} · {Profile.DatabaseName} · "
-        + (Profile.AuthenticationType == AuthenticationType.Integrated ? "Integrated" : Profile.UserName);
+        + (Profile.AuthenticationType == AuthenticationType.Integrated ? "Integrated" : Profile.UserName)
+        + (Profile.Environment == EnvironmentLabel.None ? "" : $" · {Profile.Environment}");
 }
 
 /// <summary>

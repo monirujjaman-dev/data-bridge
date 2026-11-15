@@ -335,16 +335,20 @@ Decided:
     spatial indexes, assemblies, DDL triggers, users and roles are
     reported as not compared; permissions, statistics and extended
     properties are outside the schema model (ADR-0012).
+-   **Environment labels:** profiles have an optional label
+    (Development, Test, Staging, Production). A Production write target
+    also requires typing its database name to approve a plan; other
+    labels are shown only (ADR-0015).
+-   **Data-operation materialization:** plans reference the keys and
+    fingerprints recorded during comparison in a local change set, and
+    execution re-checks each row before writing it (ADR-0016).
 
-Open:
-
-| Decision | Needed by |
-|----------|-----------|
-| Environment labels on profiles (e.g. Production) and whether they change approval requirements | Phase 5 |
-| How data operations are materialized in a plan without holding all rows (see architecture §16) | Phase 5 |
+No product decisions are open.
 
 ## 11. Revision history
 
+-   **Revision 5 (2026-11-15):** decided environment labels (ADR-0015)
+    and data-operation materialization (ADR-0016).
 -   **Revision 4 (2026-11-15):** decided the object types beyond §6.2
     (ADR-0012).
 -   **Revision 3 (2026-11-14):** decided supported SQL Server targets

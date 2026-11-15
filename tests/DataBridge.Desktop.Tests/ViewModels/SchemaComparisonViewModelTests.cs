@@ -24,7 +24,7 @@ public sealed class SchemaComparisonViewModelTests : IDisposable
     {
         await _fixture.StartAsync();
 
-        Assert.Equal(["Connections", "Schema comparison", "Data comparison"], _fixture.MainWindow.NavigationItems.Select(item => item.Title));
+        Assert.Equal(["Connections", "Schema comparison", "Data comparison", "Synchronization"], _fixture.MainWindow.NavigationItems.Select(item => item.Title));
     }
 
     [Fact]

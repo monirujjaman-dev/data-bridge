@@ -41,4 +41,10 @@ public interface IDatabaseProviderFactory
 
     /// <exception cref="NotSupportedException">No data reader is registered for <paramref name="providerType"/>.</exception>
     IDataReaderProvider GetDataReader(DatabaseProviderType providerType);
+
+    /// <exception cref="NotSupportedException">No SQL generator is registered for <paramref name="providerType"/>.</exception>
+    ISqlGenerator GetSqlGenerator(DatabaseProviderType providerType);
+
+    /// <exception cref="NotSupportedException">No target inspector is registered for <paramref name="providerType"/>.</exception>
+    ISynchronizationTargetInspector GetTargetInspector(DatabaseProviderType providerType);
 }

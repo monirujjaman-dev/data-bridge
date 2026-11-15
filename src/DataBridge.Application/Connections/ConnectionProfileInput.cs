@@ -13,6 +13,7 @@ namespace DataBridge.Application.Connections;
 /// <see langword="null"/> for integrated authentication.
 /// </param>
 /// <param name="Settings">Transport settings.</param>
+/// <param name="Environment">The environment the profile points at, as the user labels it.</param>
 public sealed record ConnectionProfileInput(
     string? Name,
     string? Server,
@@ -20,4 +21,5 @@ public sealed record ConnectionProfileInput(
     AuthenticationType AuthenticationType,
     string? UserName,
     Secret? Password,
-    ConnectionSettings Settings);
+    ConnectionSettings Settings,
+    EnvironmentLabel Environment = EnvironmentLabel.None);

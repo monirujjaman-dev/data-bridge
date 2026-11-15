@@ -1,4 +1,5 @@
 using DataBridge.Application.DependencyInjection;
+using DataBridge.Desktop.Services;
 using DataBridge.Desktop.ViewModels;
 using DataBridge.Infrastructure.DependencyInjection;
 using DataBridge.Infrastructure.Logging;
@@ -20,6 +21,8 @@ public static class DesktopServiceCollectionExtensions
         services.AddSingleton<ConnectionsViewModel>();
         services.AddSingleton<SchemaComparisonViewModel>();
         services.AddSingleton<DataComparisonViewModel>();
+        services.AddSingleton<SynchronizationViewModel>();
+        services.AddSingleton<IFileSaver, AvaloniaFileSaver>();
         return services;
     }
 

@@ -31,6 +31,8 @@ internal sealed class DesktopFixture : IDisposable
                 services.Replace(ServiceDescriptor.Singleton<IDatabaseProvider>(DatabaseProvider));
                 services.Replace(ServiceDescriptor.Singleton<ISchemaReader>(SchemaReader));
                 services.Replace(ServiceDescriptor.Singleton<IDataReaderProvider>(DataReader));
+                services.Replace(ServiceDescriptor.Singleton<ISynchronizationTargetInspector>(TargetInspector));
+                services.Replace(ServiceDescriptor.Singleton<IFileSaver>(FileSaver));
             });
     }
 
@@ -45,6 +47,12 @@ internal sealed class DesktopFixture : IDisposable
     public FakeSchemaReader SchemaReader { get; } = new();
 
     public FakeDataReader DataReader { get; } = new();
+
+    public FakeTargetInspector TargetInspector { get; } = new();
+
+    public FakeFileSaver FileSaver { get; } = new();
+
+    public SynchronizationViewModel Synchronization => Services.GetRequiredService<SynchronizationViewModel>();
 
     public DataComparisonViewModel DataComparison => Services.GetRequiredService<DataComparisonViewModel>();
 
@@ -246,5 +254,31 @@ internal sealed class FakeDataReader : IDataReaderProvider
         }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+}
+
+/// <summary>A write-target inspector that returns prepared findings instead of connecting.</summary>
+internal sealed class FakeTargetInspector : ISynchronizationTargetInspector
+{
+    public List<ValidationFinding> Findings { get; } = [];
+
+    public DataBridge.Core.Connections.DatabaseProviderType ProviderType => DataBridge.Core.Connections.DatabaseProviderType.SqlServer;
+
+    public Task<DataBridge.Shared.Results.Result<IReadOnlyList<ValidationFinding>>> InspectAsync(
+        DatabaseConnectionRequest writeTarget,
+        DataBridge.Core.Synchronization.AssembledPlan plan,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(DataBridge.Shared.Results.Result.Success<IReadOnlyList<ValidationFinding>>([.. Findings]));
+}
+
+/// <summary>Records exported files instead of showing a save dialog.</summary>
+internal sealed class FakeFileSaver : IFileSaver
+{
+    public List<(string Name, string Text)> Saved { get; } = [];
+
+    public Task<bool> SaveTextAsync(string suggestedFileName, string text, CancellationToken cancellationToken)
+    {
+        Saved.Add((suggestedFileName, text));
+        return Task.FromResult(true);
     }
 }

@@ -32,7 +32,8 @@ public sealed record DatabaseConnection
         string? credentialReference,
         ConnectionSettings settings,
         DateTimeOffset createdAtUtc,
-        DateTimeOffset updatedAtUtc)
+        DateTimeOffset updatedAtUtc,
+        EnvironmentLabel environment)
     {
         Id = id;
         Name = name;
@@ -45,6 +46,7 @@ public sealed record DatabaseConnection
         Settings = settings;
         CreatedAtUtc = createdAtUtc;
         UpdatedAtUtc = updatedAtUtc;
+        Environment = environment;
     }
 
     public Guid Id { get; }
@@ -74,6 +76,9 @@ public sealed record DatabaseConnection
 
     public DateTimeOffset UpdatedAtUtc { get; }
 
+    /// <summary>The environment the user says this profile points at; <see cref="EnvironmentLabel.None"/> when unlabelled.</summary>
+    public EnvironmentLabel Environment { get; }
+
     /// <summary>
     /// Normalizes (trims text, turns blank optional text into <see langword="null"/>) and validates a
     /// profile, returning every validation error at once.
@@ -89,7 +94,8 @@ public sealed record DatabaseConnection
         string? credentialReference,
         ConnectionSettings? settings,
         DateTimeOffset createdAtUtc,
-        DateTimeOffset updatedAtUtc)
+        DateTimeOffset updatedAtUtc,
+        EnvironmentLabel environment = EnvironmentLabel.None)
     {
         var errors = new List<Error>();
 
@@ -103,6 +109,11 @@ public sealed record DatabaseConnection
         if (!Enum.IsDefined(provider))
         {
             errors.Add(ConnectionProfileErrors.ProviderNotSupported);
+        }
+
+        if (!Enum.IsDefined(environment))
+        {
+            errors.Add(ConnectionProfileErrors.EnvironmentNotSupported);
         }
 
         var normalizedServer = Required(
@@ -145,7 +156,8 @@ public sealed record DatabaseConnection
             normalizedReference,
             normalizedSettings!,
             createdAtUtc,
-            updatedAtUtc));
+            updatedAtUtc,
+            environment));
     }
 
     /// <summary>Returns a copy with a new name and <see cref="UpdatedAtUtc"/>.</summary>
@@ -161,7 +173,8 @@ public sealed record DatabaseConnection
             CredentialReference,
             Settings,
             CreatedAtUtc,
-            updatedAtUtc);
+            updatedAtUtc,
+            Environment);
 
     /// <summary>Returns a copy that points at a different credential store entry (or none).</summary>
     public Result<DatabaseConnection> WithCredentialReference(string? credentialReference, DateTimeOffset updatedAtUtc) =>
@@ -176,7 +189,8 @@ public sealed record DatabaseConnection
             credentialReference,
             Settings,
             CreatedAtUtc,
-            updatedAtUtc);
+            updatedAtUtc,
+            Environment);
 
     private static string? NormalizeName(string? name, List<Error> errors)
     {

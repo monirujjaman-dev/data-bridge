@@ -1,6 +1,7 @@
 using DataBridge.Application.Connections;
 using DataBridge.Application.DataComparison;
 using DataBridge.Application.SchemaComparison;
+using DataBridge.Application.Synchronization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -30,6 +31,13 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<ComparisonSetup>();
         services.AddTransient<ListDataComparisonTables>();
         services.AddTransient<CompareData>();
+
+        // Plans live for the application session (not yet persisted).
+        services.AddSingleton<SynchronizationPlanStore>();
+        services.AddTransient<CreateSynchronizationPlan>();
+        services.AddTransient<ValidateSynchronizationPlan>();
+        services.AddTransient<ApproveSynchronizationPlan>();
+        services.AddTransient<SynchronizationScripts>();
 
         return services;
     }

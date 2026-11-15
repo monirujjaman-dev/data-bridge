@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace DataBridge.Desktop.ViewModels;
 
 /// <summary>A saved profile offered as a source or target.</summary>
-public sealed record ProfileOption(Guid Id, string Name)
+public sealed record ProfileOption(Guid Id, string Name, DataBridge.Core.Connections.EnvironmentLabel Environment = DataBridge.Core.Connections.EnvironmentLabel.None)
 {
     public override string ToString() => Name;
 }

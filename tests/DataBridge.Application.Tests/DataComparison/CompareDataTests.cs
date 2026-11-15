@@ -252,6 +252,10 @@ public sealed class CompareDataTests
 
         public IDataReaderProvider GetDataReader(DatabaseProviderType providerType) => this;
 
+        public ISqlGenerator GetSqlGenerator(DatabaseProviderType providerType) => throw new NotSupportedException();
+
+        public ISynchronizationTargetInspector GetTargetInspector(DatabaseProviderType providerType) => throw new NotSupportedException();
+
         public ValueKind Classify(ColumnDefinition column) => column.SqlTypeName == "int" ? ValueKind.WholeNumber : ValueKind.Text;
 
         public Task<Result<ResolvedDatabaseIdentity>> ResolveIdentityAsync(DatabaseConnectionRequest request, CancellationToken cancellationToken) =>

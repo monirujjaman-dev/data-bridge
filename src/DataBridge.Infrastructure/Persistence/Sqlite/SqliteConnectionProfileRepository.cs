@@ -23,7 +23,7 @@ public sealed class SqliteConnectionProfileRepository(LocalDatabase database) : 
         """
         SELECT id, name, provider, server, database_name, authentication_type, user_name, credential_reference,
                encrypt, trust_server_certificate, connect_timeout_seconds, application_name,
-               created_at_utc, updated_at_utc
+               created_at_utc, updated_at_utc, environment
         FROM connection_profiles
         """;
 
@@ -84,11 +84,11 @@ public sealed class SqliteConnectionProfileRepository(LocalDatabase database) : 
             INSERT INTO connection_profiles (
                 id, name, provider, server, database_name, authentication_type, user_name, credential_reference,
                 encrypt, trust_server_certificate, connect_timeout_seconds, application_name,
-                created_at_utc, updated_at_utc)
+                created_at_utc, updated_at_utc, environment)
             VALUES (
                 $id, $name, $provider, $server, $databaseName, $authenticationType, $userName, $credentialReference,
                 $encrypt, $trustServerCertificate, $connectTimeoutSeconds, $applicationName,
-                $createdAtUtc, $updatedAtUtc);
+                $createdAtUtc, $updatedAtUtc, $environment);
             """;
         AddProfileParameters(command, profile);
         await ExecuteWriteAsync(command, cancellationToken);
@@ -117,7 +117,8 @@ public sealed class SqliteConnectionProfileRepository(LocalDatabase database) : 
                 trust_server_certificate = $trustServerCertificate,
                 connect_timeout_seconds = $connectTimeoutSeconds,
                 application_name = $applicationName,
-                updated_at_utc = $updatedAtUtc
+                updated_at_utc = $updatedAtUtc,
+                environment = $environment
             WHERE id = $id AND updated_at_utc = $expectedUpdatedAtUtc;
             """;
         AddProfileParameters(command, profile);
@@ -165,6 +166,7 @@ public sealed class SqliteConnectionProfileRepository(LocalDatabase database) : 
         parameters.AddWithValue("$applicationName", (object?)profile.Settings.ApplicationName ?? DBNull.Value);
         parameters.AddWithValue("$createdAtUtc", FormatTimestamp(profile.CreatedAtUtc));
         parameters.AddWithValue("$updatedAtUtc", FormatTimestamp(profile.UpdatedAtUtc));
+        parameters.AddWithValue("$environment", profile.Environment.ToString());
     }
 
     private static DatabaseConnection ReadProfile(DbDataReader reader)
@@ -192,7 +194,8 @@ public sealed class SqliteConnectionProfileRepository(LocalDatabase database) : 
             NullableString(reader, 7),
             settings,
             ParseTimestamp(reader.GetString(12), idText, "created_at_utc"),
-            ParseTimestamp(reader.GetString(13), idText, "updated_at_utc"));
+            ParseTimestamp(reader.GetString(13), idText, "updated_at_utc"),
+            ParseEnum<EnvironmentLabel>(reader.GetString(14), idText, "environment"));
 
         return result.IsSuccess
             ? result.Value

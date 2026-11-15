@@ -21,6 +21,9 @@ Records 0001--0008 record the baseline decisions in
 | [0012](0012-schema-comparison-object-scope.md) | Schema comparison object scope in v1 | Accepted |
 | [0013](0013-dacfx-not-adopted-for-schema-reading.md) | DacFx is not adopted for schema reading and comparison | Accepted |
 | [0014](0014-key-ordering-and-row-streaming.md) | Key ordering and row streaming for data comparison | Accepted |
+| [0015](0015-environment-labels.md) | Environment labels on connection profiles | Accepted |
+| [0016](0016-data-operation-materialization.md) | Data operations reference recorded keys and fingerprints | Accepted |
+| [0017](0017-schema-synchronization-scope.md) | Schema synchronization scope and SQL generation | Accepted |
 
 ## Writing a new record
 

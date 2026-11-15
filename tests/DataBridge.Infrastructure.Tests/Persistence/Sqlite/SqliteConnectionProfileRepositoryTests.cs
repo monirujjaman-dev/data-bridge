@@ -43,6 +43,23 @@ public sealed class SqliteConnectionProfileRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task Environment_label_round_trips_and_updates()
+    {
+        var repository = await CreateRepositoryAsync();
+        var profile = Profile("Live", environment: EnvironmentLabel.Production);
+        await repository.AddAsync(profile, Token);
+        Assert.Equal(EnvironmentLabel.Production, (await repository.FindAsync(profile.Id, Token))!.Environment);
+
+        var relabelled = DatabaseConnection.Create(
+            profile.Id, profile.Name, profile.Provider, profile.Server, profile.DatabaseName, profile.AuthenticationType,
+            profile.UserName, profile.CredentialReference, profile.Settings, profile.CreatedAtUtc, _created.AddMinutes(1),
+            EnvironmentLabel.Test).Value;
+        Assert.True(await repository.UpdateAsync(relabelled, profile.UpdatedAtUtc, Token));
+
+        Assert.Equal(EnvironmentLabel.Test, (await repository.FindAsync(profile.Id, Token))!.Environment);
+    }
+
+    [Fact]
     public async Task Find_returns_null_for_unknown_id()
     {
         var repository = await CreateRepositoryAsync();
@@ -228,7 +245,8 @@ public sealed class SqliteConnectionProfileRepositoryTests : IDisposable
         string? userName = "app",
         string? credentialReference = null,
         ConnectionSettings? settings = null,
-        DateTimeOffset? updated = null) =>
+        DateTimeOffset? updated = null,
+        EnvironmentLabel environment = EnvironmentLabel.None) =>
         DatabaseConnection.Create(
             Guid.NewGuid(),
             name,
@@ -240,5 +258,6 @@ public sealed class SqliteConnectionProfileRepositoryTests : IDisposable
             credentialReference,
             settings ?? ConnectionSettings.Default,
             _created,
-            updated ?? _created).Value;
+            updated ?? _created,
+            environment).Value;
 }

@@ -1,0 +1,285 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DataBridge.Desktop.ViewModels"
+             x:Class="DataBridge.Desktop.Views.SynchronizationView"
+             x:DataType="vm:SynchronizationViewModel">
+
+  <DockPanel>
+
+    <!-- Route sign: which database is copied from and which one the plan writes to. -->
+    <Border Classes="route-sign" Classes.alert="{Binding IsSameDatabase}" DockPanel.Dock="Top"
+            IsVisible="{Binding HasIdentities}">
+      <Grid ColumnDefinitions="*,Auto,Auto,*">
+        <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+          <TextBlock Classes="label" Text="{Binding CopySideLabel}" />
+          <TextBlock Classes="display" Text="{Binding CopyIdentity.DatabaseName}" TextTrimming="CharacterEllipsis"
+                     ToolTip.Tip="{Binding CopyIdentity.DatabaseName}" />
+          <TextBlock Classes="detail" TextTrimming="CharacterEllipsis">
+            <Run Text="{Binding CopyIdentity.ServerName}" /><Run Text=" · " /><Run Text="{Binding CopyIdentity.ServerVersion}" />
+          </TextBlock>
+        </StackPanel>
+        <PathIcon Grid.Column="1" Classes="sign-arrow" Margin="24,0" VerticalAlignment="Center" />
+        <Rectangle Grid.Column="2" Classes="sign-rule" />
+        <StackPanel Grid.Column="3" Spacing="4" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock Classes="label" Text="{Binding WriteSideLabel}" />
+            <TextBlock Classes="label danger" Text="{Binding WriteEnvironmentText}" />
+          </StackPanel>
+          <TextBlock Classes="display" Text="{Binding WriteIdentity.DatabaseName}" TextTrimming="CharacterEllipsis"
+                     ToolTip.Tip="{Binding WriteIdentity.DatabaseName}" />
+          <TextBlock Classes="detail" TextTrimming="CharacterEllipsis">
+            <Run Text="{Binding WriteIdentity.ServerName}" /><Run Text=" · " /><Run Text="{Binding WriteIdentity.ServerVersion}" />
+          </TextBlock>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Toolbar: profiles, direction, what to compare. -->
+    <Border Classes="toolbar" DockPanel.Dock="Top">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Classes="accent" VerticalAlignment="Center" Content="Compare"
+                Command="{Binding CompareCommand}" HotKey="Ctrl+R"
+                ToolTip.Tip="Compare the chosen parts of both databases (Ctrl+R). Neither database is changed." />
+        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" ItemSpacing="16" LineSpacing="8">
+          <TextBlock Classes="title" Text="Synchronization" VerticalAlignment="Center" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Label Content="_Source" Target="SourcePicker" VerticalAlignment="Center" />
+            <ComboBox x:Name="SourcePicker" Width="200" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedSource}"
+                      IsEnabled="{Binding IsIdle}" PlaceholderText="Choose a profile" AutomationProperties.Name="Source profile" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Label Content="_Target" Target="TargetPicker" VerticalAlignment="Center" />
+            <ComboBox x:Name="TargetPicker" Width="200" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedTarget}"
+                      IsEnabled="{Binding IsIdle}" PlaceholderText="Choose a profile" AutomationProperties.Name="Target profile" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Label Content="_Direction" Target="DirectionPicker" VerticalAlignment="Center" />
+            <ComboBox x:Name="DirectionPicker" Width="300" ItemsSource="{x:Static vm:DirectionOption.All}" SelectedItem="{Binding Direction}"
+                      IsEnabled="{Binding IsIdle}" AutomationProperties.Name="Direction" />
+          </StackPanel>
+          <CheckBox Content="Sc_hema" IsChecked="{Binding IncludeSchema}" IsEnabled="{Binding IsIdle}" VerticalAlignment="Center" />
+          <CheckBox Content="Da_ta" IsChecked="{Binding IncludeData}" IsEnabled="{Binding IsIdle}" VerticalAlignment="Center" />
+          <TextBlock Classes="caption caution" Text="{Binding SelectionHint}" VerticalAlignment="Center"
+                     IsVisible="{Binding SelectionHint, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </WrapPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Status bar: progress with Cancel while running, otherwise the plan summary. -->
+    <Border Classes="statusbar" DockPanel.Dock="Bottom" MinHeight="32">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="16" IsVisible="{Binding IsBusy}">
+          <ProgressBar IsIndeterminate="True" Width="120" VerticalAlignment="Center" />
+          <Button Content="Cancel" Command="{Binding CancelBusyCommand}" HotKey="Escape" />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Right" Classes="caption numeric" Margin="16,0" Text="{Binding PlanSummary}" VerticalAlignment="Center" />
+        <TextBlock Classes="caption" Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      </DockPanel>
+    </Border>
+
+    <DockPanel Margin="24">
+
+      <StackPanel DockPanel.Dock="Top">
+        <Border Classes="callout danger" Margin="0,0,0,12" IsVisible="{Binding IsSameDatabase}">
+          <ContentControl Classes="signal blocked">
+            <TextBlock TextWrapping="Wrap" FontWeight="Bold"
+                       Text="Both profiles resolve to the same database, so there is nothing to synchronize." />
+          </ContentControl>
+        </Border>
+        <Border Classes="callout danger" Margin="0,0,0,12" IsVisible="{Binding OperationError, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <ContentControl Classes="signal blocked">
+            <TextBlock Text="{Binding OperationError}" TextWrapping="Wrap" />
+          </ContentControl>
+        </Border>
+        <Border Classes="callout danger" Margin="0,0,0,12" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <ContentControl Classes="signal blocked">
+            <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
+          </ContentControl>
+        </Border>
+        <Border Classes="callout" Margin="0,0,0,12" IsVisible="{Binding WritesToProduction}">
+          <ContentControl Classes="signal warning">
+            <TextBlock TextWrapping="Wrap"
+                       Text="The plan writes to a database labelled Production. Approving it asks you to type the database name." />
+          </ContentControl>
+        </Border>
+        <!-- FR-PLN-010: destructive operations are opt-in, inside their danger callout. -->
+        <Border Classes="callout danger" Margin="0,0,0,12" IsVisible="{Binding HasDifferences}">
+          <StackPanel Spacing="4">
+            <ContentControl Classes="signal blocked">
+              <TextBlock FontWeight="Bold" Text="Destructive operations are not planned unless you allow them" />
+            </ContentControl>
+            <TextBlock TextWrapping="Wrap"
+                       Text="Dropping objects or columns, deleting rows and changes that can lose data. Each one still needs its own approval." />
+            <CheckBox Content="Allow _destructive operations in this plan" IsChecked="{Binding AllowDestructiveOperations}"
+                      IsEnabled="{Binding IsIdle}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <Grid ColumnDefinitions="360,16,*,16,380" IsVisible="{Binding HasDifferences}">
+
+        <!-- Differences to include. -->
+        <Border Classes="panel" Grid.Column="0" Padding="0">
+          <DockPanel>
+            <TextBlock Classes="label" DockPanel.Dock="Top" Margin="16,12" Text="DIFFERENCES" />
+            <StackPanel DockPanel.Dock="Bottom" Margin="16" Orientation="Horizontal" HorizontalAlignment="Right">
+              <Button Classes="accent" Content="Create _plan" Command="{Binding CreatePlanCommand}" HotKey="Ctrl+P"
+                      ToolTip.Tip="Build a plan from the selected differences (Ctrl+P). Nothing is written." />
+            </StackPanel>
+            <ListBox ItemsSource="{Binding Differences}" Background="Transparent" IsEnabled="{Binding IsIdle}"
+                     AutomationProperties.Name="Differences to synchronize">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:SyncDifferenceItem">
+                  <StackPanel Spacing="4" Margin="0,4">
+                    <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}" />
+                    </CheckBox>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <ContentControl Classes="signal" Classes.add="{Binding IsAdd}" Classes.remove="{Binding IsRemove}"
+                                      Classes.change="{Binding IsChange}" Classes.excluded="{Binding IsBlocked}">
+                        <TextBlock Text="{Binding StatusText}" />
+                      </ContentControl>
+                      <TextBlock Classes="caption muted" Text="{Binding KindText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Classes="caption muted" Text="{Binding Detail}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+
+        <!-- The plan: operations in order, what was left out, and the script. -->
+        <Border Classes="panel" Grid.Column="2" Padding="0" IsVisible="{Binding HasPlan}">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Top" Margin="16,12" Spacing="4">
+              <TextBlock Classes="label" Text="PLAN" />
+              <TextBlock Classes="caption" Text="{Binding PlanStatusText}" TextWrapping="Wrap" />
+              <TextBlock Classes="caption danger" Text="{Binding StatusReason}" TextWrapping="Wrap"
+                         IsVisible="{Binding StatusReason, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+            <TabControl>
+              <TabItem Header="Operations">
+                <Grid RowDefinitions="*,12,220">
+                  <DataGrid Classes="two-line" ItemsSource="{Binding Operations}" SelectedItem="{Binding SelectedOperation}"
+                            IsReadOnly="True" SelectionMode="Single" CanUserReorderColumns="False" CanUserSortColumns="False"
+                            AutomationProperties.Name="Plan operations">
+                    <DataGrid.Columns>
+                      <DataGridTextColumn Header="#" Width="48" Binding="{Binding OrderText}" />
+                      <DataGridTemplateColumn Header="RISK" Width="170">
+                        <DataGridTemplateColumn.CellTemplate>
+                          <DataTemplate x:DataType="vm:PlanOperationItem">
+                            <ContentControl Classes="signal" Margin="12,0" VerticalAlignment="Center"
+                                            Classes.cleared="{Binding IsLowRisk}" Classes.change="{Binding IsMediumRisk}"
+                                            Classes.awaiting="{Binding IsHighRisk}" Classes.remove="{Binding IsDangerous}">
+                              <TextBlock Text="{Binding RiskText}" />
+                            </ContentControl>
+                          </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                      </DataGridTemplateColumn>
+                      <DataGridTemplateColumn Header="OPERATION" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                          <DataTemplate x:DataType="vm:PlanOperationItem">
+                            <StackPanel Margin="12,0" VerticalAlignment="Center" Spacing="2">
+                              <TextBlock Text="{Binding Description}" ToolTip.Tip="{Binding Description}" />
+                              <TextBlock Classes="secondary" Text="{Binding WarningsText}" ToolTip.Tip="{Binding WarningsText}" />
+                            </StackPanel>
+                          </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                      </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                  </DataGrid>
+                  <Border Grid.Row="2" Classes="sunken" Margin="16,0,16,16">
+                    <Panel>
+                      <TextBlock Classes="muted" IsVisible="{Binding !HasSelectedOperation}" Text="Select an operation to see its SQL." />
+                      <ScrollViewer IsVisible="{Binding HasSelectedOperation}" HorizontalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="8">
+                          <TextBlock Classes="caption caution" Text="{Binding SelectedOperation.WarningsText}" TextWrapping="Wrap"
+                                     IsVisible="{Binding SelectedOperation.HasWarnings}" />
+                          <SelectableTextBlock Classes="code" Text="{Binding SelectedOperation.SqlText}" />
+                        </StackPanel>
+                      </ScrollViewer>
+                    </Panel>
+                  </Border>
+                </Grid>
+              </TabItem>
+              <TabItem Header="Not included">
+                <ScrollViewer Margin="16">
+                  <ItemsControl ItemsSource="{Binding NotIncluded}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <ContentControl Classes="signal warning" Margin="0,0,0,8">
+                          <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                        </ContentControl>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </TabItem>
+              <TabItem Header="Script">
+                <Border Classes="sunken" Margin="16">
+                  <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                    <SelectableTextBlock Classes="code" Text="{Binding ScriptText}" />
+                  </ScrollViewer>
+                </Border>
+              </TabItem>
+            </TabControl>
+          </DockPanel>
+        </Border>
+
+        <!-- Validation and approval. -->
+        <Border Classes="panel" Grid.Column="4" IsVisible="{Binding HasPlan}">
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="label" Text="VALIDATE" />
+              <TextBlock Classes="caption muted" TextWrapping="Wrap"
+                         Text="Checks that the write target is still the database compared, with the same schema, that the login has the permissions needed, and that existing rows would not make an operation fail. Read-only." />
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="_Validate" Command="{Binding ValidateCommand}" />
+              </StackPanel>
+              <ItemsControl ItemsSource="{Binding Findings}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:FindingItem">
+                    <ContentControl Classes="signal" Classes.blocked="{Binding IsBlocking}" Classes.warning="{Binding !IsBlocking}" Margin="0,0,0,8">
+                      <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                    </ContentControl>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <TextBlock Classes="label" Text="APPROVE" Margin="0,12,0,0" />
+              <CheckBox IsChecked="{Binding ConfirmWriteTarget}" IsEnabled="{Binding IsValidated}">
+                <TextBlock TextWrapping="Wrap">
+                  <Run Text="This plan writes to " /><Run FontWeight="Bold" Text="{Binding WriteIdentity.DatabaseName}" /><Run Text=" on " /><Run FontWeight="Bold" Text="{Binding WriteIdentity.ServerName}" /><Run Text="." />
+                </TextBlock>
+              </CheckBox>
+              <ItemsControl ItemsSource="{Binding Operations}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:PlanOperationItem">
+                    <CheckBox IsChecked="{Binding IsApproved}" IsVisible="{Binding NeedsApproval}" Margin="0,0,0,4">
+                      <TextBlock TextWrapping="Wrap">
+                        <Run Text="{Binding OrderText}" /><Run Text=". " /><Run Text="{Binding Description}" /><Run Text=" (" /><Run Text="{Binding RiskText}" /><Run Text=")" />
+                      </TextBlock>
+                    </CheckBox>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <StackPanel Spacing="4" IsVisible="{Binding RequiresTypedName}">
+                <Label Content="Type the database _name to approve" Target="TypedNameBox" />
+                <TextBox x:Name="TypedNameBox" Classes="code" Text="{Binding TypedDatabaseName}" AutomationProperties.Name="Database name" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <Button Content="_Export script" Command="{Binding ExportScriptCommand}"
+                        ToolTip.Tip="Save the plan's SQL for review. Running it yourself skips DataBridge's checks." />
+                <Button Classes="accent" Content="_Approve" Command="{Binding ApproveCommand}"
+                        ToolTip.Tip="Approve exactly this plan. Nothing is executed yet." />
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+    </DockPanel>
+
+  </DockPanel>
+
+</UserControl>

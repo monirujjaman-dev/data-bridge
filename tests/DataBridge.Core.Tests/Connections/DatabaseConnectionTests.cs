@@ -117,6 +117,24 @@ public sealed class DatabaseConnectionTests
             ConnectionProfileErrors.ProviderNotSupported,
             ConnectionProfileErrors.AuthenticationTypeNotSupported);
 
+    [Fact]
+    public void Environment_label_defaults_to_none_rejects_undefined_values_and_survives_rename()
+    {
+        Assert.Equal(EnvironmentLabel.None, Create().Value.Environment);
+
+        var production = DatabaseConnection.Create(
+            _id, "Live", DatabaseProviderType.SqlServer, "server", "db", AuthenticationType.Integrated, null, null,
+            ConnectionSettings.Default, _created, _created, EnvironmentLabel.Production).Value;
+        Assert.Equal(EnvironmentLabel.Production, production.Rename("Live 2", _created.AddMinutes(1)).Value.Environment);
+        Assert.Equal(EnvironmentLabel.Production, production.WithCredentialReference(null, _created.AddMinutes(1)).Value.Environment);
+
+        AssertErrors(
+            DatabaseConnection.Create(
+                _id, "Live", DatabaseProviderType.SqlServer, "server", "db", AuthenticationType.Integrated, null, null,
+                ConnectionSettings.Default, _created, _created, (EnvironmentLabel)42),
+            ConnectionProfileErrors.EnvironmentNotSupported);
+    }
+
     [Theory]
     [InlineData(0, false)]
     [InlineData(ConnectionSettings.MinConnectTimeoutSeconds, true)]
