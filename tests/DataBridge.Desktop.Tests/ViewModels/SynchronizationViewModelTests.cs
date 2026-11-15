@@ -87,7 +87,8 @@ public sealed class SynchronizationViewModelTests : IDisposable
         await page.ExportScriptCommand.ExecuteAsync(null);
         var (name, text) = Assert.Single(_fixture.FileSaver.Saved);
         Assert.EndsWith(".sql", name, StringComparison.Ordinal);
-        Assert.Contains("IF DB_NAME() COLLATE Latin1_General_BIN2 <> N'SalesCopy' COLLATE Latin1_General_BIN2", text, StringComparison.Ordinal);
+        Assert.Contains("IF DB_NAME() COLLATE Latin1_General_BIN2 <> @Database COLLATE Latin1_General_BIN2", text, StringComparison.Ordinal);
+        Assert.Contains("-- Writes to:    SalesCopy", text, StringComparison.Ordinal);
     }
 
     [Fact]

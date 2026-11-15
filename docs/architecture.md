@@ -349,7 +349,9 @@ As implemented in Phase 5:
     unless the database name, server name and, when known, database
     GUID match the plan's write target, and shows data operations as
     commented-out templates. Text from the databases is written into
-    comments with line breaks removed. The plan also records the copied
+    comments with line breaks and `$(` broken up, and the names the
+    guard checks are written as hex (`CAST(0x... AS nvarchar)`) so that
+    SSMS and sqlcmd cannot split or substitute into them. The plan also records the copied
     side's identity fingerprint; all of these are covered by the
     content hash.
 

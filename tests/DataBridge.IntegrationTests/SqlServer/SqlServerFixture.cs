@@ -70,6 +70,10 @@ public sealed class SqlServerFixture : IAsyncLifetime
         Assert.Skip($"No SQL Server container (Docker unavailable?): {UnavailableReason}");
     }
 
+    /// <summary>An <c>sa</c> connection string for <paramref name="database"/>, for tests that drive a connection themselves.</summary>
+    public string ConnectionString(string database) =>
+        new SqlConnectionStringBuilder(Container.GetConnectionString()) { InitialCatalog = database }.ConnectionString;
+
     /// <summary>Creates an empty database with a unique, safe name and returns the name.</summary>
     public async Task<string> CreateDatabaseAsync(CancellationToken cancellationToken)
     {

@@ -232,6 +232,78 @@ public sealed class SqlServerSynchronizationTests(SqlServerFixture server)
         Assert.True(await command.ExecuteNonQueryAsync(Token) >= 1, "The template changed no row.");
     }
 
+    [Fact]
+    public async Task The_exported_script_runs_only_in_its_write_target_and_not_at_all_with_a_hazardous_operation()
+    {
+        server.RequireServer();
+        var target = $"DataBridgeTest_{Guid.NewGuid():N}_O'Brien_Ünï";
+        await server.ExecuteAsync($"CREATE DATABASE [{target}];", Token);
+        var other = await CreateDatabaseAsync("");
+        var reported = (await server.QueryRowAsync(
+            "master",
+            $"SELECT CONVERT(nvarchar(256), SERVERPROPERTY('ServerName')), (SELECT service_broker_guid FROM sys.databases WHERE name = N'{target.Replace("'", "''", StringComparison.Ordinal)}')",
+            Token)).Split('|');
+        var identity = ResolvedDatabaseIdentity.Create(DatabaseProviderType.SqlServer, reported[0], target, 5, "SQL Server 2022", null, Guid.Parse(reported[1]));
+        string Script(params string[] batches) => _generator.BuildScript(SynchronizationPlan.Create(
+            Guid.NewGuid(), Guid.NewGuid(), SynchronizationDirection.SourceToTarget, Guid.NewGuid(), identity, EnvironmentLabel.None, "schema",
+            SynchronizationPlanOptions.Default,
+            batches.Select((batch, order) => new SynchronizationOperation(
+                Guid.NewGuid(), order, new DatabaseObjectId("dbo", $"Probe{order}", DatabaseObjectType.Table), SynchronizationOperationType.CreateObject,
+                OperationRisk.Low, false, [], "Create probe", [batch], null, [])),
+            [], DateTimeOffset.UtcNow));
+        var safe = Script("CREATE TABLE dbo.Probe0 (Id int);");
+        var hazardous = Script("CREATE TABLE dbo.Probe0 (Id int);", "CREATE TABLE dbo.Probe1 (Id int CONSTRAINT DF_Probe1 DEFAULT (0x0A) /*\nGO\n*/);");
+
+        var wrongDatabase = await RunLikeSsmsAsync(other, safe);
+        Assert.Contains(wrongDatabase, message => message.Contains("This script must run in database", StringComparison.Ordinal));
+        Assert.Equal("0", await server.QueryRowAsync(other, "SELECT COUNT(*) FROM sys.tables", Token));
+
+        var stopped = await RunLikeSsmsAsync(target, hazardous);
+        Assert.Contains(stopped, message => message.Contains("cannot be shown as runnable SQL", StringComparison.Ordinal));
+        Assert.Equal("0", await server.QueryRowAsync(target, "SELECT COUNT(*) FROM sys.tables", Token));
+
+        Assert.Empty(await RunLikeSsmsAsync(target, safe));
+        Assert.Equal("1", await server.QueryRowAsync(target, "SELECT COUNT(*) FROM sys.tables WHERE name = N'Probe0'", Token));
+    }
+
+    /// <summary>
+    /// Runs a script as SSMS does: batches split on lines that are only <c>GO</c>, all on one connection (so
+    /// <c>SET NOEXEC ON</c> carries over), carrying on after a failed batch. Returns the error messages.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> RunLikeSsmsAsync(string database, string script)
+    {
+        var errors = new List<string>();
+        await using var connection = new SqlConnection(server.ConnectionString(database));
+        await connection.OpenAsync(Token);
+        var batch = new System.Text.StringBuilder();
+        foreach (var line in script.Split(["\r\n", "\n"], StringSplitOptions.None).Append("GO"))
+        {
+            if (!string.Equals(line.Trim(), "GO", StringComparison.OrdinalIgnoreCase))
+            {
+                batch.AppendLine(line);
+                continue;
+            }
+
+            if (batch.ToString().Trim().Length > 0)
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = batch.ToString();
+                try
+                {
+                    await command.ExecuteNonQueryAsync(Token);
+                }
+                catch (SqlException exception)
+                {
+                    errors.Add(exception.Message);
+                }
+            }
+
+            batch.Clear();
+        }
+
+        return errors;
+    }
+
     private async Task<(SynchronizationPlan Plan, AssembledPlan Assembled)> PlanAsync(string source, string target, bool allowDestructive)
     {
         var sourceSchema = await ReadAsync(source);

@@ -215,6 +215,35 @@ public sealed class SqlServerSqlGeneratorTests
     }
 
     [Fact]
+    public void Hostile_database_and_server_names_cannot_add_lines_to_the_script()
+    {
+        const string hostile = "Sales\nGO\nDROP TABLE dbo.Orders;\n:connect other\n$(Secret)\r--";
+        var identity = ResolvedDatabaseIdentity.Create(DatabaseProviderType.SqlServer, hostile, hostile, 5, "SQL Server 2022", null);
+        var plan = SynchronizationPlan.Create(
+            Guid.NewGuid(), Guid.NewGuid(), SynchronizationDirection.SourceToTarget, Guid.NewGuid(), identity, EnvironmentLabel.None,
+            "schema", SynchronizationPlanOptions.Default,
+            [new SynchronizationOperation(Guid.NewGuid(), 0, _table, SynchronizationOperationType.CreateObject, OperationRisk.Low, false, [], "Create table", ["CREATE TABLE x (Id int);"], null, [])],
+            [], DateTimeOffset.UnixEpoch);
+
+        var script = _generator.BuildScript(plan);
+        var lines = script.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
+
+        var runnable = lines.Where(line => !line.TrimStart().StartsWith("--", StringComparison.Ordinal)).ToArray();
+        Assert.All(runnable.Where(line => !string.Equals(line.Trim(), "GO", StringComparison.Ordinal)), line => Assert.Null(SqlServerSqlGenerator.ScriptHazard(line)));
+        Assert.Equal(2, runnable.Count(line => line.Trim() == "GO"));
+        Assert.DoesNotContain(lines, line => line.StartsWith("DROP TABLE", StringComparison.Ordinal));
+        Assert.DoesNotContain("$(", script, StringComparison.Ordinal);
+        Assert.Contains(SqlServerSqlGenerator.HexText(hostile, 128), script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Hex_text_is_the_utf16_bytes_of_the_value()
+    {
+        Assert.Equal("CAST(0x41002820 AS nvarchar(10))", SqlServerSqlGenerator.HexText($"A{LineSeparator}", 10));
+        Assert.Equal("CAST(0x AS nvarchar(1))", SqlServerSqlGenerator.HexText("", 1));
+    }
+
+    [Fact]
     public void The_script_stops_in_the_wrong_database_and_comments_out_data_operations()
     {
         var databaseGuid = Guid.Parse("4f1c1a52-0d3e-4c3c-9a4b-2b7f6d1e8a90");
@@ -230,8 +259,12 @@ public sealed class SqlServerSqlGeneratorTests
 
         var script = _generator.BuildScript(plan);
 
-        Assert.Contains("IF DB_NAME() COLLATE Latin1_General_BIN2 <> N'Sales''DB' COLLATE Latin1_General_BIN2", script, StringComparison.Ordinal);
-        Assert.Contains("<> UPPER(N'db01')", script, StringComparison.Ordinal);
+        // "Sales'DB" and "db01" as UTF-16LE hex.
+        Assert.Contains("DECLARE @Database nvarchar(128) = CAST(0x530061006C0065007300270044004200 AS nvarchar(128)),", script, StringComparison.Ordinal);
+        Assert.Contains("@Server nvarchar(256) = CAST(0x6400620030003100 AS nvarchar(256));", script, StringComparison.Ordinal);
+        Assert.Contains("IF DB_NAME() COLLATE Latin1_General_BIN2 <> @Database COLLATE Latin1_General_BIN2", script, StringComparison.Ordinal);
+        Assert.Contains("<> UPPER(@Server)", script, StringComparison.Ordinal);
+        Assert.Contains("16, 1, @Database, @Server);", script, StringComparison.Ordinal);
         Assert.Contains($"service_broker_guid = '{databaseGuid:D}'", script, StringComparison.Ordinal);
         Assert.Contains("-- - Not this one DROP TABLE x -- SELECT 1", script, StringComparison.Ordinal);
         Assert.DoesNotContain(LineSeparator, script);
