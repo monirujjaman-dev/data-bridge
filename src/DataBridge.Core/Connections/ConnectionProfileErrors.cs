@@ -23,6 +23,9 @@ public static class ConnectionProfileErrors
     public static readonly Error ProviderNotSupported =
         new("ConnectionProfile.ProviderNotSupported", "This database provider is not supported.");
 
+    public static readonly Error EnvironmentNotSupported =
+        new("ConnectionProfile.EnvironmentNotSupported", "This environment label is not supported.");
+
     public static readonly Error ServerRequired =
         new("ConnectionProfile.ServerRequired", "Enter a server.");
 

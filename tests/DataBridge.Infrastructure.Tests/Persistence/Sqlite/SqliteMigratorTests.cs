@@ -74,6 +74,24 @@ public sealed class SqliteMigratorTests : IDisposable
     }
 
     [Fact]
+    public async Task Upgrading_labels_existing_profiles_as_not_labelled()
+    {
+        await ExecuteAsync(SqliteMigrations.All[0].Sql + "PRAGMA user_version = 1;");
+        await ExecuteAsync(
+            """
+            INSERT INTO connection_profiles VALUES (
+                'a3c8f0a2-6a1e-4f63-9c44-0e1f2b3c4d5e', 'Old', 'SqlServer', 'db01', 'Sales', 'Integrated', NULL, NULL,
+                1, 0, 15, NULL, '2026-11-14T09:30:15.0000000+00:00', '2026-11-14T09:30:15.0000000+00:00');
+            """);
+
+        await new SqliteMigrator(_temporary.Database).MigrateAsync(Token);
+        var profile = await new SqliteConnectionProfileRepository(_temporary.Database)
+            .FindAsync(Guid.Parse("a3c8f0a2-6a1e-4f63-9c44-0e1f2b3c4d5e"), Token);
+
+        Assert.Equal(DataBridge.Core.Connections.EnvironmentLabel.None, profile!.Environment);
+    }
+
+    [Fact]
     public async Task Cancellation_is_honored()
     {
         using var cancellation = new CancellationTokenSource();

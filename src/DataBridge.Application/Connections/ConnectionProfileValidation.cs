@@ -26,7 +26,8 @@ internal static class ConnectionProfileValidation
             integrated ? null : credentialReference,
             input.Settings,
             createdAtUtc,
-            updatedAtUtc);
+            updatedAtUtc,
+            input.Environment);
 
         if (!integrated || input.Password is null)
         {

@@ -34,6 +34,12 @@ internal static class SqliteMigrations
 
             CREATE UNIQUE INDEX ux_connection_profiles_name ON connection_profiles (name COLLATE NOCASE);
             """),
+        new(
+            2,
+            "Add the environment label to connection_profiles",
+            """
+            ALTER TABLE connection_profiles ADD COLUMN environment TEXT NOT NULL DEFAULT 'None';
+            """),
     ];
 
     public static int LatestVersion => All[^1].Version;

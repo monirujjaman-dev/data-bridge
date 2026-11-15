@@ -19,6 +19,23 @@ public sealed record AuthenticationOption(AuthenticationType Type, string Label)
     public static AuthenticationOption For(AuthenticationType type) => All.Single(option => option.Type == type);
 }
 
+/// <summary>An environment label choice in the editor.</summary>
+/// <param name="Label">The label.</param>
+/// <param name="Text">How it reads in the UI.</param>
+public sealed record EnvironmentOption(EnvironmentLabel Label, string Text)
+{
+    public static IReadOnlyList<EnvironmentOption> All { get; } =
+    [
+        new(EnvironmentLabel.None, "Not labelled"),
+        new(EnvironmentLabel.Development, "Development"),
+        new(EnvironmentLabel.Test, "Test"),
+        new(EnvironmentLabel.Staging, "Staging"),
+        new(EnvironmentLabel.Production, "Production"),
+    ];
+
+    public static EnvironmentOption For(EnvironmentLabel label) => All.Single(option => option.Label == label);
+}
+
 /// <summary>
 /// The fields of the profile being created or edited. Holds the typed password only until it is saved;
 /// a saved password is never loaded back into the editor.
@@ -107,6 +124,10 @@ public sealed partial class ConnectionProfileEditorViewModel : ViewModelBase
 
     public string Title => IsNew ? "New connection profile" : $"Edit {Name}";
 
+    /// <summary>The environment label; Production makes approving plans that write to this profile stricter.</summary>
+    [ObservableProperty]
+    public partial EnvironmentOption Environment { get; set; } = EnvironmentOption.All[0];
+
     public bool UsesSqlAuthentication => Authentication.Type == AuthenticationType.SqlAuthentication;
 
     public bool IsUnencrypted => !Encrypt;
@@ -130,6 +151,7 @@ public sealed partial class ConnectionProfileEditorViewModel : ViewModelBase
         TrustServerCertificate = ConnectionSettings.Default.TrustServerCertificate;
         ConnectTimeoutSeconds = ConnectionSettings.DefaultConnectTimeoutSeconds;
         ApplicationName = null;
+        Environment = EnvironmentOption.All[0];
         ClearErrors();
         NotifyIdentityChanged();
     }
@@ -151,6 +173,7 @@ public sealed partial class ConnectionProfileEditorViewModel : ViewModelBase
         TrustServerCertificate = profile.Settings.TrustServerCertificate;
         ConnectTimeoutSeconds = profile.Settings.ConnectTimeoutSeconds;
         ApplicationName = profile.Settings.ApplicationName;
+        Environment = EnvironmentOption.For(profile.Environment);
         ClearErrors();
         NotifyIdentityChanged();
     }
@@ -170,7 +193,8 @@ public sealed partial class ConnectionProfileEditorViewModel : ViewModelBase
                 Encrypt,
                 TrustServerCertificate,
                 ConnectTimeoutSeconds is { } seconds ? (int)Math.Clamp(seconds, int.MinValue, int.MaxValue) : 0,
-                ApplicationName));
+                ApplicationName),
+            Environment.Label);
     }
 
     /// <summary>Puts each error next to its field; errors that belong to no field go to <see cref="GeneralError"/>.</summary>

@@ -202,6 +202,21 @@
                 </ComboBox>
               </StackPanel>
 
+              <StackPanel Classes="field">
+                <Label Content="En_vironment" Target="EnvironmentBox" />
+                <ComboBox x:Name="EnvironmentBox" MinWidth="280"
+                          ItemsSource="{x:Static vm:EnvironmentOption.All}"
+                          SelectedItem="{Binding Editor.Environment}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:EnvironmentOption">
+                      <TextBlock Text="{Binding Text}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Classes="caption muted" TextWrapping="Wrap"
+                           Text="Approving a plan that writes to a Production database also asks you to type its name." />
+              </StackPanel>
+
               <Grid ColumnDefinitions="*,16,*" IsVisible="{Binding Editor.UsesSqlAuthentication}">
                 <StackPanel Classes="field" Grid.Column="0">
                   <Label Content="_User name" Target="UserNameBox" />

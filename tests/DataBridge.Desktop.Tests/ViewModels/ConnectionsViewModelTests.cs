@@ -189,6 +189,25 @@ public sealed class ConnectionsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Environment_label_is_saved_shown_and_loaded_back()
+    {
+        var page = await _fixture.StartAsync();
+        Fill(page.Editor, "Live", password: Password);
+        page.Editor.Environment = EnvironmentOption.For(EnvironmentLabel.Production);
+
+        await page.SaveCommand.ExecuteAsync(null);
+        var item = Assert.Single(page.Profiles);
+        Assert.Equal(EnvironmentLabel.Production, item.Profile.Environment);
+        Assert.EndsWith(" · Production", item.Detail, StringComparison.Ordinal);
+
+        page.Editor.StartNew();
+        Assert.Equal(EnvironmentLabel.None, page.Editor.Environment.Label);
+        page.SelectedProfile = null;
+        page.SelectedProfile = item;
+        Assert.Equal(EnvironmentLabel.Production, page.Editor.Environment.Label);
+    }
+
+    [Fact]
     public async Task Deleting_asks_for_confirmation_then_removes_the_profile_and_its_password()
     {
         var page = await _fixture.StartAsync();
