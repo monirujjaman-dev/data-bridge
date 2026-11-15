@@ -127,7 +127,13 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
             _unsupported.Add(new UnsupportedObject(schema, row.Name, "PARTITIONING", "Table partitioning is not compared; the rest of the table is."));
         }
 
-        _tables[row.Id] = new TableBuilder(new DatabaseObjectId(schema, row.Name, DatabaseObjectType.Table)) { HeapDataCompression = kind.HeapDataCompression };
+        _tables[row.Id] = new TableBuilder(new DatabaseObjectId(schema, row.Name, DatabaseObjectType.Table))
+        {
+            HeapDataCompression = kind.HeapDataCompression,
+            ExpressionReferences = catalog.ModuleReferences.TryGetValue(row.Id, out var references)
+                ? [.. references.OrderBy(reference => reference.SchemaName, StringComparer.Ordinal).ThenBy(reference => reference.ObjectName, StringComparer.Ordinal)]
+                : [],
+        };
     }
 
     private static string? UnsupportedTableReason(TableKindRow kind) => kind switch
@@ -326,6 +332,8 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
 
         public string? HeapDataCompression { get; init; }
 
+        public IReadOnlyList<ModuleReference> ExpressionReferences { get; init; } = [];
+
         public List<IndexDefinition> Indexes { get; } = [];
 
         public TableDefinition Build() => new(
@@ -337,7 +345,8 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
             [.. CheckConstraints.OrderBy(item => item.Name, StringComparer.Ordinal)],
             [.. DefaultConstraints.OrderBy(item => item.Name, StringComparer.Ordinal)],
             [.. Indexes.OrderBy(item => item.Name, StringComparer.Ordinal)],
-            HeapDataCompression);
+            HeapDataCompression,
+            ExpressionReferences);
     }
 
     private sealed class ViewBuilder(DatabaseObjectId id, ModuleDefinition module)

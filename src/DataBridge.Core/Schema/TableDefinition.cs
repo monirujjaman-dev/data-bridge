@@ -5,6 +5,8 @@ namespace DataBridge.Core.Schema;
 /// <summary>
 /// A table and its children. Columns are in ordinal order. <c>HeapDataCompression</c> is the compression of a
 /// table without a clustered index, or <see langword="null"/> when it has one (the clustered index carries it).
+/// <c>ExpressionReferences</c> are the functions, sequences and other objects its computed columns, checks and
+/// defaults use, for synchronization order only; not compared.
 /// </summary>
 public sealed record TableDefinition(
     DatabaseObjectId Id,
@@ -15,7 +17,11 @@ public sealed record TableDefinition(
     IReadOnlyList<CheckConstraintDefinition> CheckConstraints,
     IReadOnlyList<DefaultConstraintDefinition> DefaultConstraints,
     IReadOnlyList<IndexDefinition> Indexes,
-    string? HeapDataCompression = null);
+    string? HeapDataCompression = null,
+    IReadOnlyList<ModuleReference>? ExpressionReferences = null)
+{
+    public IReadOnlyList<ModuleReference> EffectiveExpressionReferences => ExpressionReferences ?? [];
+}
 
 /// <summary>
 /// A column. Type facets that do not apply to the type are <see langword="null"/>. Defaults are modeled as

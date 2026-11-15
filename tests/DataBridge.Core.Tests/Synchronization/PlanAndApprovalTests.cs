@@ -46,6 +46,47 @@ public sealed class PlanAndApprovalTests
     }
 
     [Fact]
+    public void The_content_hash_covers_the_write_target_server_database_guid_and_copy_side()
+    {
+        SynchronizationPlan With(ResolvedDatabaseIdentity writeTarget, ResolvedDatabaseIdentity? copySide = null) =>
+            SynchronizationPlan.Create(
+                _planId, _sessionId, SynchronizationDirection.SourceToTarget, _connectionId, writeTarget, EnvironmentLabel.None, "schema-hash",
+                SynchronizationPlanOptions.Default, [Operation(_first, 0)], [], Now, copySide);
+        var identity = Identity();
+        var plan = With(identity);
+
+        Assert.Equal("db01", plan.WriteTargetServerName);
+        Assert.NotEqual(plan.ContentHash, With(ResolvedDatabaseIdentity.Create(DatabaseProviderType.SqlServer, "db02", "Target", 7, "SQL Server 2022", "Latin1_General_CI_AS")).ContentHash);
+        Assert.NotEqual(plan.ContentHash, With(ResolvedDatabaseIdentity.Create(DatabaseProviderType.SqlServer, "db01", "Target", 7, "SQL Server 2022", "Latin1_General_CI_AS", Guid.NewGuid())).ContentHash);
+        var copied = With(identity, Identity("Source"));
+        Assert.Equal(Identity("Source").IdentityFingerprint, copied.CopySideIdentityFingerprint);
+        Assert.NotEqual(plan.ContentHash, copied.ContentHash);
+    }
+
+    [Fact]
+    public void A_change_bound_to_one_left_out_by_a_cycle_is_left_out_too()
+    {
+        PlannedChange Change(string name) =>
+            new(TableId(name), SynchronizationOperationType.DropObject, OperationRisk.Critical, true, $"Drop {name}", [], 0, new DropTableDetail(TableId(name)));
+        var draft = new PlanDraft();
+        var prerequisite = draft.Add(Change("Prerequisite"));
+        var drop = draft.Add(Change("Dropped"));
+        var partner = draft.Add(Change("Partner"));
+        var independent = draft.Add(Change("Independent"));
+        draft.DependOn(drop, prerequisite);
+        draft.Bind(drop, prerequisite);
+        draft.DependOn(drop, partner);
+        draft.DependOn(partner, drop);
+
+        var plan = Assemble(draft, new SynchronizationPlanOptions(AllowDestructiveOperations: true));
+
+        Assert.Equal(TableId("Independent"), Assert.Single(plan.Operations).ObjectId);
+        Assert.Contains(plan.NotIncluded, issue => issue.Message.Contains("cycle", StringComparison.Ordinal));
+        Assert.Contains(plan.NotIncluded, issue => issue.ObjectId == TableId("Prerequisite") && issue.Message.Contains("belongs with", StringComparison.Ordinal));
+        _ = independent;
+    }
+
+    [Fact]
     public void A_plan_keeps_its_own_copy_of_operation_lists()
     {
         var sql = new List<string> { "SELECT 1;" };

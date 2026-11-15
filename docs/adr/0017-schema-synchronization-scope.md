@@ -48,14 +48,23 @@ the statements correctly and report everything it leaves out.
     (schemas, tables, columns, keys before foreign keys, referenced
     objects before modules via `sys.sql_expression_dependencies`, and the
     reverse for drops), sorted topologically with cycle detection.
+    Tables, added columns and constraints also wait for the functions
+    and sequences their computed columns, checks and defaults reference.
     Procedure-to-procedure references are ignored for ordering because
-    SQL Server resolves them at run time.
+    SQL Server resolves them at run time. A change left out because of
+    a cycle leaves out what depends on it, and changes that stand or
+    fall together (a constraint's drop and recreate, a required drop and
+    the drop that needs it) are left out together.
 -   **Required drops are added.** A selected drop that cannot run without
     removing something the copied side also lacks (a dropped column's
     default, a foreign key to a dropped table) adds that drop and says
     why. Anything else it would need is reported instead.
 -   **Risk** follows the `architecture.md` §10 baseline. Changing a
-    column so that values can be lost or rejected is destructive; a
+    column so that values can be lost or rejected is destructive
+    (including a collation change on `char`, `varchar` or `text`,
+    whose code page can lose characters, and `datetime` to `datetime2`
+    below scale 3); identity, sparse and ROWGUIDCOL columns are not
+    altered in place at all; a
     constraint, key or index on a table the plan creates is Low.
 
 ## Consequences
@@ -65,8 +74,23 @@ the statements correctly and report everything it leaves out.
 -   Some real-world changes need manual work; the plan says which and
     why rather than attempting them.
 -   A module renamed with `sp_rename` keeps its old name in its stored
-    text, so recreating it from that text creates the old name. This is
-    not detected yet.
+    text. The generator checks that a definition's header names the
+    planned object (and a trigger's table), qualifies a one-part name
+    with the planned schema, and refuses any other name, so such a
+    module needs manual work.
+-   The exported script is read by SSMS or sqlcmd before SQL Server
+    sees it, so an operation whose SQL has a line those tools act on
+    (`GO`, a sqlcmd command such as `:connect` or `!!`, or a `$(`
+    variable; any Unicode line break counts) is shown commented out and
+    the script stops at its first statement. DataBridge's own execution
+    sends batches separately and is not affected.
+-   Expression references are recorded per table, not per column or
+    constraint, so a table's creates and drops are all ordered around
+    every function and sequence any of its computed columns, checks or
+    defaults use. This can report a false cycle, for example a new
+    column on a table whose check calls a new function that reads that
+    table. Altering a function that a check or computed column uses is
+    not checked in advance and can fail at execution time.
 
 ## Alternatives considered
 

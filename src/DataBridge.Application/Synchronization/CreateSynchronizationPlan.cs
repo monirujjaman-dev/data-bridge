@@ -69,9 +69,9 @@ public sealed class CreateSynchronizationPlan(
         }
 
         var toTarget = request.Direction == SynchronizationDirection.SourceToTarget;
-        var (writeProfileId, writeIdentity, writeSchema) = toTarget
-            ? (request.TargetProfileId, target, targetSchema)
-            : (request.SourceProfileId, source, sourceSchema);
+        var (writeProfileId, writeIdentity, writeSchema, copyIdentity) = toTarget
+            ? (request.TargetProfileId, target, targetSchema, source)
+            : (request.SourceProfileId, source, sourceSchema, target);
         var writeProfile = await profiles.FindAsync(writeProfileId, cancellationToken);
         if (writeProfile is null)
         {
@@ -103,7 +103,8 @@ public sealed class CreateSynchronizationPlan(
                 writeProfile.Environment,
                 SchemaFingerprint.Compute(writeSchema),
                 request.Options,
-                timeProvider.GetUtcNow()),
+                timeProvider.GetUtcNow(),
+                copyIdentity),
             generator.Generate,
             Guid.NewGuid);
 

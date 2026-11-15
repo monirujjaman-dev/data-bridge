@@ -13,7 +13,8 @@ public sealed record PlanHeader(
     EnvironmentLabel WriteTargetEnvironment,
     string WriteTargetSchemaFingerprint,
     SynchronizationPlanOptions Options,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    ResolvedDatabaseIdentity? CopySide = null);
 
 /// <summary>A plan and, for each operation, the detail its SQL was generated from (used to validate the write target).</summary>
 public sealed record AssembledPlan(SynchronizationPlan Plan, IReadOnlyDictionary<Guid, SchemaChangeDetail> Details);
@@ -63,30 +64,48 @@ public static class PlanAssembler
 
         ExcludeDependents(draft, excluded, issues);
 
-        var included = Enumerable.Range(0, changes.Count).Where(index => !excluded[index]).ToArray();
-        var position = new Dictionary<int, int>();
-        for (var index = 0; index < included.Length; index++)
+        // Leaving out a change in a cycle can leave out a partner or dependent elsewhere, so repeat until stable.
+        int[] included;
+        DependencyOrder order;
+        while (true)
         {
-            position[included[index]] = index;
-        }
+            included = [.. Enumerable.Range(0, changes.Count).Where(index => !excluded[index])];
+            var positions = new Dictionary<int, int>();
+            for (var index = 0; index < included.Length; index++)
+            {
+                positions[included[index]] = index;
+            }
 
-        var order = DependencyOrdering.Sort(
-            included.Length,
-            node => draft.DependenciesOf(included[node]).Where(position.ContainsKey).Select(dependency => position[dependency]),
-            node => changes[included[node]].Rank);
+            var nodes = included;
+            order = DependencyOrdering.Sort(
+                nodes.Length,
+                node => draft.DependenciesOf(nodes[node]).Where(positions.ContainsKey).Select(dependency => positions[dependency]),
+                node => changes[nodes[node]].Rank);
+            if (!order.HasCycles && order.Blocked.Count == 0)
+            {
+                break;
+            }
 
-        foreach (var cycle in order.Cycles)
-        {
-            var members = cycle.Select(node => changes[included[node]]).ToArray();
-            issues.Add(new PlanIssue(
-                members[0].ObjectId,
-                $"These changes depend on each other in a cycle, so none of them is included: {string.Join("; ", members.Select(member => member.Description))}."));
-        }
+            foreach (var cycle in order.Cycles)
+            {
+                var members = cycle.Select(node => changes[nodes[node]]).ToArray();
+                issues.Add(new PlanIssue(
+                    members[0].ObjectId,
+                    $"These changes depend on each other in a cycle, so none of them is included: {string.Join("; ", members.Select(member => member.Description))}."));
+                foreach (var node in cycle)
+                {
+                    excluded[nodes[node]] = true;
+                }
+            }
 
-        foreach (var node in order.Blocked)
-        {
-            var change = changes[included[node]];
-            issues.Add(new PlanIssue(change.ObjectId, $"{change.Description}: not included because it depends on changes in a dependency cycle."));
+            foreach (var node in order.Blocked)
+            {
+                var change = changes[nodes[node]];
+                issues.Add(new PlanIssue(change.ObjectId, $"{change.Description}: not included because it depends on changes in a dependency cycle."));
+                excluded[nodes[node]] = true;
+            }
+
+            ExcludeDependents(draft, excluded, issues);
         }
 
         var ids = new Dictionary<int, Guid>();
@@ -126,11 +145,12 @@ public static class PlanAssembler
             header.Options,
             operations,
             issues,
-            header.CreatedAtUtc);
+            header.CreatedAtUtc,
+            header.CopySide);
         return new AssembledPlan(plan, details);
     }
 
-    /// <summary>Excludes every change that depends, directly or indirectly, on an excluded one.</summary>
+    /// <summary>Excludes every change that depends on an excluded one, or is bound to one, directly or indirectly.</summary>
     private static void ExcludeDependents(PlanDraft draft, bool[] excluded, List<PlanIssue> issues)
     {
         var changed = true;
@@ -139,7 +159,13 @@ public static class PlanAssembler
             changed = false;
             for (var index = 0; index < excluded.Length; index++)
             {
-                if (excluded[index] || !draft.DependenciesOf(index).Any(dependency => excluded[dependency]))
+                if (excluded[index])
+                {
+                    continue;
+                }
+
+                var dependsOnExcluded = draft.DependenciesOf(index).Any(dependency => excluded[dependency]);
+                if (!dependsOnExcluded && !draft.PartnersOf(index).Any(partner => excluded[partner]))
                 {
                     continue;
                 }
@@ -147,7 +173,11 @@ public static class PlanAssembler
                 excluded[index] = true;
                 changed = true;
                 var change = draft.Changes[index];
-                issues.Add(new PlanIssue(change.ObjectId, $"{change.Description}: not included because a change it depends on is not included."));
+                issues.Add(new PlanIssue(
+                    change.ObjectId,
+                    dependsOnExcluded
+                        ? $"{change.Description}: not included because a change it depends on is not included."
+                        : $"{change.Description}: not included because the change it belongs with is not included."));
             }
         }
     }

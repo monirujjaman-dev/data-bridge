@@ -374,7 +374,7 @@ public sealed class SchemaSynchronizationPlanner
         var index = Add(
             id, SynchronizationOperationType.CreateObject, OperationRisk.Low, false, $"Create table {id.DisplayName}", warnings,
             RankCreateTable, new CreateTableDetail(included),
-            new Fact(ChangeKind.CreateTable, id.SchemaName, id.ObjectName, id.ObjectName, DatabaseObjectType.Table));
+            new Fact(ChangeKind.CreateTable, id.SchemaName, id.ObjectName, id.ObjectName, DatabaseObjectType.Table) { References = table.EffectiveExpressionReferences });
         _objectCreates[Key(id)] = index;
 
         foreach (var foreignKey in table.ForeignKeys)
@@ -424,7 +424,7 @@ public sealed class SchemaSynchronizationPlanner
         var index = Add(
             id, SynchronizationOperationType.DropObject, OperationRisk.Critical, true,
             $"Drop table {id.DisplayName} and all its rows", warnings, RankDropTable, new DropTableDetail(id),
-            new Fact(ChangeKind.DropTable, id.SchemaName, id.ObjectName, id.ObjectName, DatabaseObjectType.Table));
+            new Fact(ChangeKind.DropTable, id.SchemaName, id.ObjectName, id.ObjectName, DatabaseObjectType.Table) { References = table.EffectiveExpressionReferences });
         _objectDrops[Key(id)] = index;
 
         foreach (var (other, foreignKey) in referencing)
@@ -440,6 +440,7 @@ public sealed class SchemaSynchronizationPlanner
             if (drop is { } dropIndex)
             {
                 _draft.DependOn(index, dropIndex);
+                _draft.Bind(index, dropIndex);
             }
         }
     }
@@ -517,7 +518,11 @@ public sealed class SchemaSynchronizationPlanner
             id, SynchronizationOperationType.CreateObject, risk, false,
             $"Add column {id.DisplayName}" + (defaultConstraint is null ? "" : $" with default {defaultConstraint.Name}"),
             warnings, RankAddColumn, new AddColumnDetail(writeTable.Id, column, defaultConstraint),
-            new Fact(ChangeKind.AddColumn, id.SchemaName, writeTable.Id.ObjectName, column.Name, DatabaseObjectType.Column) { Columns = [column.Name] });
+            new Fact(ChangeKind.AddColumn, id.SchemaName, writeTable.Id.ObjectName, column.Name, DatabaseObjectType.Column)
+            {
+                Columns = [column.Name],
+                References = copyTable.EffectiveExpressionReferences,
+            });
         _childCreates[ChildKeyOf(id)] = index;
     }
 
@@ -553,11 +558,16 @@ public sealed class SchemaSynchronizationPlanner
             $"Drop column {id.DisplayName} and its values",
             ["Check constraints and computed columns that use the column make the drop fail."],
             RankChangeColumn, new DropColumnDetail(writeTable.Id, column.Name),
-            new Fact(ChangeKind.DropColumn, id.SchemaName, writeTable.Id.ObjectName, column.Name, DatabaseObjectType.Column) { Columns = [column.Name] });
+            new Fact(ChangeKind.DropColumn, id.SchemaName, writeTable.Id.ObjectName, column.Name, DatabaseObjectType.Column)
+            {
+                Columns = [column.Name],
+                References = writeTable.EffectiveExpressionReferences,
+            });
         _childDrops[ChildKeyOf(id)] = index;
         foreach (var prerequisite in prerequisites)
         {
             _draft.DependOn(index, prerequisite);
+            _draft.Bind(index, prerequisite);
         }
     }
 
@@ -586,6 +596,12 @@ public sealed class SchemaSynchronizationPlanner
         if (UnsupportedColumn(column) is { } reason)
         {
             _draft.Report(id, $"Column {id.DisplayName} is not changed: {reason}");
+            return;
+        }
+
+        if (FixedInPlace(column) || FixedInPlace(existing))
+        {
+            _draft.Report(id, $"Column {id.DisplayName} is not changed: identity, sparse and ROWGUIDCOL columns cannot be changed in place, and DataBridge does not rebuild tables.");
             return;
         }
 
@@ -640,6 +656,22 @@ public sealed class SchemaSynchronizationPlanner
     {
         var fromType = from.ProviderBaseTypeName ?? from.SqlTypeName;
         var toType = to.ProviderBaseTypeName ?? to.SqlTypeName;
+        if (IsNonUnicodeText(fromType) && IsNonUnicodeText(toType) && !string.Equals(from.CollationName, to.CollationName, StringComparison.OrdinalIgnoreCase))
+        {
+            // A different collation can mean a different code page, and characters it lacks become '?'. Collations that
+            // share a code page are flagged too: the code page is not part of the model, so this errs on the safe side.
+            return true;
+        }
+
+        if (string.Equals(fromType, "datetime", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(toType, "datetime2", StringComparison.OrdinalIgnoreCase)
+            && to.Scale is not >= 3)
+        {
+            // datetime values are 1/300 s apart. From scale 3 each one keeps a distinct value that converts back
+            // unchanged; below it neighbouring values merge. An unknown scale is treated as lossy.
+            return true;
+        }
+
         if (!string.Equals(fromType, toType, StringComparison.OrdinalIgnoreCase) && !IsWidening(fromType, toType))
         {
             return true;
@@ -664,6 +696,18 @@ public sealed class SchemaSynchronizationPlanner
 
         return from.Scale is { } fromFraction && to.Scale is { } toFraction && toFraction < fromFraction;
     }
+
+    /// <summary>
+    /// Identity, sparse and ROWGUIDCOL are not kept or set by <c>ALTER COLUMN</c>, so a change to a column that has any
+    /// of them on either side would silently drop or miss it.
+    /// </summary>
+    private static bool FixedInPlace(ColumnDefinition column) =>
+        column.Identity is not null || column.EffectiveOptions.IsSparse || column.EffectiveOptions.IsRowGuidColumn;
+
+    private static bool IsNonUnicodeText(string type) =>
+        type.Equals("char", StringComparison.OrdinalIgnoreCase)
+        || type.Equals("varchar", StringComparison.OrdinalIgnoreCase)
+        || type.Equals("text", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsWidening(string from, string to)
     {
@@ -811,11 +855,16 @@ public sealed class SchemaSynchronizationPlanner
             id, afterDrop is null ? SynchronizationOperationType.CreateObject : SynchronizationOperationType.AlterObject, risk, false,
             (afterDrop is null ? "Add " : "Recreate ") + $"{Describe(type)} {id.DisplayName}", warning is null ? [] : [warning],
             RankCreateChild, new AddConstraintDetail(table, definition, definition is CheckConstraintDefinition { IsNotTrusted: true }),
-            new Fact(ChangeKind.CreateChild, table.SchemaName, table.ObjectName, name, type) { Columns = columns });
+            new Fact(ChangeKind.CreateChild, table.SchemaName, table.ObjectName, name, type)
+            {
+                Columns = columns,
+                References = _copyObjects[Key(table)] is TableDefinition copyTable ? copyTable.EffectiveExpressionReferences : [],
+            });
         _childCreates[ChildKeyOf(id)] = index;
         if (afterDrop is { } drop)
         {
             _draft.DependOn(index, drop);
+            _draft.Bind(index, drop);
         }
     }
 
@@ -843,6 +892,7 @@ public sealed class SchemaSynchronizationPlanner
         if (afterDrop is { } drop)
         {
             _draft.DependOn(index, drop);
+            _draft.Bind(index, drop);
         }
     }
 
@@ -881,6 +931,7 @@ public sealed class SchemaSynchronizationPlanner
         if (afterDrop is { } drop)
         {
             _draft.DependOn(index, drop);
+            _draft.Bind(index, drop);
         }
     }
 
@@ -935,6 +986,9 @@ public sealed class SchemaSynchronizationPlanner
             Referenced = definition is ForeignKeyDefinition { ReferencedTableName: { } referencedName } foreignKeyDefinition
                 ? new ObjectKey(foreignKeyDefinition.ReferencedSchemaName!, referencedName)
                 : null,
+            References = _writeObjects.TryGetValue(Key(table), out var writeTable) && writeTable is TableDefinition tableDefinition
+                ? tableDefinition.EffectiveExpressionReferences
+                : [],
         };
         var index = Add(
             id, recreating ? SynchronizationOperationType.AlterObject : SynchronizationOperationType.DropObject,
@@ -944,6 +998,7 @@ public sealed class SchemaSynchronizationPlanner
         foreach (var prerequisite in prerequisites)
         {
             _draft.DependOn(index, prerequisite);
+            _draft.Bind(index, prerequisite);
         }
 
         return index;
@@ -1080,6 +1135,7 @@ public sealed class SchemaSynchronizationPlanner
 
         var warnings = WriteModulesReferencing(id)
             .Select(other => $"{other.Id.DisplayName} references it" + (other.Module.IsSchemaBound ? " and is schema-bound, so the drop fails unless it is dropped first." : " and will stop working."))
+            .Concat(TablesUsingWarnings(id))
             .ToArray();
         var index = Add(
             id, SynchronizationOperationType.DropObject, OperationRisk.Critical, true, $"Drop {Describe(id.ObjectType)} {id.DisplayName}", warnings,
@@ -1098,6 +1154,17 @@ public sealed class SchemaSynchronizationPlanner
         DatabaseObjectType.Trigger => RankTrigger,
         _ => RankProcedure,
     };
+
+    /// <summary>
+    /// Warnings for write-side tables whose computed columns, checks or defaults use <paramref name="target"/>. The plan
+    /// drops it after any of those it drops itself (see the dependency rules); the warning covers the ones it keeps.
+    /// </summary>
+    private IEnumerable<string> TablesUsingWarnings(DatabaseObjectId target) =>
+        WriteSchema.Schemas
+            .SelectMany(schema => schema.Tables)
+            .Where(table => !TableBeingDropped(table.Id)
+                && table.EffectiveExpressionReferences.Any(reference => _names.Equals(reference.SchemaName, target.SchemaName) && _names.Equals(reference.ObjectName, target.ObjectName)))
+            .Select(table => $"{table.Id.DisplayName} uses it in a computed column, check or default; the drop fails unless that use is removed first.");
 
     private IEnumerable<(DatabaseObjectId Id, ModuleDefinition Module)> ModulesReferencing(DatabaseObjectId table) => WriteModulesReferencing(table);
 
@@ -1124,7 +1191,7 @@ public sealed class SchemaSynchronizationPlanner
             var writeId = IdOf(_writeObjects[Key(id)]);
             _objectDrops[Key(id)] = Add(
                 writeId, SynchronizationOperationType.DropObject, OperationRisk.Critical, true, $"Drop sequence {writeId.DisplayName}",
-                ["Defaults and code that use the sequence stop working."], RankDropSequence, new DropSequenceDetail(writeId),
+                ["Defaults and code that use the sequence stop working.", .. TablesUsingWarnings(writeId)], RankDropSequence, new DropSequenceDetail(writeId),
                 new Fact(ChangeKind.DropSequence, writeId.SchemaName, writeId.ObjectName, writeId.ObjectName, DatabaseObjectType.Sequence));
             return;
         }
@@ -1226,10 +1293,13 @@ public sealed class SchemaSynchronizationPlanner
                 var self = new ObjectKey(fact.Schema, fact.Name);
                 dependencies = dependencies.Concat(Where(other =>
                     (other is { Kind: ChangeKind.DropForeignKey, Referenced: { } target } && _keys.Equals(target, self))
-                    || (other.Kind == ChangeKind.DropModule && other.References.Any(reference => Is(fact, new ObjectKey(reference.SchemaName, reference.ObjectName))))));
+                    || (other.Kind is ChangeKind.DropModule or ChangeKind.DropTable or ChangeKind.DropChild or ChangeKind.DropColumn
+                    && other.References.Any(reference => Is(fact, new ObjectKey(reference.SchemaName, reference.ObjectName))))));
             }
 
-            if (fact.Kind == ChangeKind.CreateModule)
+            // Modules wait for what they reference; tables, columns and constraints for the functions and sequences their
+            // computed columns, checks and defaults use.
+            if (fact.Kind is ChangeKind.CreateModule or ChangeKind.CreateTable or ChangeKind.AddColumn or ChangeKind.CreateChild)
             {
                 foreach (var reference in fact.References)
                 {

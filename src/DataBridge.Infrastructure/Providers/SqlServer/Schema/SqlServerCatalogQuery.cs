@@ -138,15 +138,19 @@ internal static class SqlServerCatalogQuery
         LEFT JOIN sys.sql_modules AS m ON m.object_id = o.object_id
         WHERE o.is_ms_shipped = 0 AND o.type IN ('V', 'P', 'FN', 'IF', 'TF', 'TR');
 
-        -- Objects each module references in this database, as resolved by the engine (for synchronization order).
-        -- Reading them needs VIEW DEFINITION; without it the list is empty, which only loses ordering hints.
+        -- Objects each module, and each table's computed columns, checks and defaults, reference in this database, as
+        -- resolved by the engine (for synchronization order). The engine records a check or default under its own
+        -- object, so those are reported for the table that owns it. Reading them needs VIEW DEFINITION; without it the
+        -- list is empty, which only loses ordering hints.
         IF ISNULL(HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'VIEW DEFINITION'), 0) = 1
-            SELECT DISTINCT d.referencing_id, SCHEMA_NAME(ro.schema_id), ro.name
+            SELECT DISTINCT r.owner_id, SCHEMA_NAME(ro.schema_id), ro.name
             FROM sys.sql_expression_dependencies AS d
+            JOIN sys.objects AS so ON so.object_id = d.referencing_id
+            CROSS APPLY (SELECT CASE WHEN so.type IN ('C', 'D') THEN so.parent_object_id ELSE d.referencing_id END AS owner_id) AS r
             JOIN sys.objects AS ro ON ro.object_id = d.referenced_id
             WHERE d.referencing_class = 1 AND d.referenced_class = 1 AND d.referenced_id IS NOT NULL
               AND d.referenced_server_name IS NULL AND d.referenced_database_name IS NULL
-              AND d.referenced_id <> d.referencing_id AND ro.is_ms_shipped = 0;
+              AND d.referenced_id <> r.owner_id AND ro.is_ms_shipped = 0;
         ELSE
             SELECT CAST(NULL AS int), CAST(NULL AS sysname), CAST(NULL AS sysname) WHERE 1 = 0;
 

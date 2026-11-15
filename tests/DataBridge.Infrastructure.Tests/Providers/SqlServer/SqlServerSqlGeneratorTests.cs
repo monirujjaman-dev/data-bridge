@@ -8,6 +8,8 @@ namespace DataBridge.Infrastructure.Tests.Providers.SqlServer;
 
 public sealed class SqlServerSqlGeneratorTests
 {
+    private const char LineSeparator = (char)0x2028;
+    private const char NextLine = (char)0x0085;
     private static readonly IndexOptions _options = new(false, 0, false, true, true, false, "NONE");
     private static readonly DatabaseObjectId _table = new("dbo", "Odd]Name", DatabaseObjectType.Table);
     private readonly SqlServerSqlGenerator _generator = new();
@@ -89,7 +91,91 @@ public sealed class SqlServerSqlGeneratorTests
 
         Assert.Equal(2, batches.Count);
         Assert.Equal("SET ANSI_NULLS OFF;\nSET QUOTED_IDENTIFIER ON;", batches[0]);
-        Assert.Equal("CREATE PROCEDURE p AS SELECT 1", batches[1]);
+        Assert.Equal("CREATE PROCEDURE [dbo].p AS SELECT 1", batches[1]);
+    }
+
+    [Theory]
+    [InlineData(DatabaseObjectType.View, "sales", "v", null, "CREATE VIEW v AS SELECT 1", "CREATE VIEW [sales].v AS SELECT 1")]
+    [InlineData(DatabaseObjectType.View, "sales", "v", null, "create view [Sales].[v] as select 1", "create view [Sales].[v] as select 1")]
+    [InlineData(DatabaseObjectType.StoredProcedure, "dbo", "p", null, "/* c */ CREATE OR ALTER PROC \"p\" AS SELECT 1", "/* c */ CREATE OR ALTER PROC [dbo].\"p\" AS SELECT 1")]
+    [InlineData(DatabaseObjectType.ScalarFunction, "dbo", "Odd]Name", null, "CREATE FUNCTION [Odd]]Name]() RETURNS int AS BEGIN RETURN 1 END", "CREATE FUNCTION [dbo].[Odd]]Name]() RETURNS int AS BEGIN RETURN 1 END")]
+    [InlineData(DatabaseObjectType.Trigger, "dbo", "tr", "T", "CREATE TRIGGER tr ON T AFTER INSERT AS SELECT 1", "CREATE TRIGGER [dbo].tr ON [dbo].T AFTER INSERT AS SELECT 1")]
+    [InlineData(DatabaseObjectType.Trigger, "dbo", "tr", "T", "CREATE TRIGGER dbo . tr ON dbo.T AFTER INSERT AS SELECT 1", "CREATE TRIGGER dbo . tr ON dbo.T AFTER INSERT AS SELECT 1")]
+    public void Module_headers_are_qualified_with_the_planned_schema(
+        DatabaseObjectType type, string schema, string name, string? parent, string definition, string expected) =>
+        Assert.Equal(expected, SqlServerSqlGenerator.QualifyHeader(definition, new DatabaseObjectId(schema, name, type, parent)));
+
+    [Theory]
+    [InlineData(DatabaseObjectType.View, null, "CREATE VIEW old_name AS SELECT 1")]
+    [InlineData(DatabaseObjectType.View, null, "CREATE VIEW other.v AS SELECT 1")]
+    [InlineData(DatabaseObjectType.View, null, "CREATE PROCEDURE v AS SELECT 1")]
+    [InlineData(DatabaseObjectType.Trigger, "T", "CREATE TRIGGER v ON Other AFTER INSERT AS SELECT 1")]
+    [InlineData(DatabaseObjectType.View, null, "CREATE VIEW dbo.V AS SELECT 1")]
+    public void A_module_whose_header_names_another_object_is_refused(DatabaseObjectType type, string? parent, string definition)
+    {
+        var id = new DatabaseObjectId("dbo", "v", type, parent);
+        var detail = new CreateModuleDetail(id, new ModuleDefinition(definition, false, false, true, true), IsAlter: false);
+
+        Assert.True(_generator.Generate(new PlannedChange(id, SynchronizationOperationType.CreateObject, OperationRisk.Low, false, "test", [], 0, detail)).IsFailure);
+    }
+
+    [Fact]
+    public void Lines_that_ssms_or_sqlcmd_would_act_on_are_script_hazards()
+    {
+        string[] hazards =
+        [
+            "SELECT 1\nGO\nDROP TABLE x",
+            "SELECT 1\r\n  go 2  \r\nSELECT 2",
+            "SELECT 1\nGO -- next",
+            "SELECT 1\rGO\rDROP TABLE x",
+            $"SELECT 1{LineSeparator}GO{LineSeparator}DROP TABLE x",
+            $"SELECT 1{NextLine}GO",
+            "SELECT 1\n:connect other",
+            "SELECT 1\n  !! del *",
+            "SELECT 1\nexit",
+            "SELECT N'$(Password)'",
+        ];
+        string[] safe =
+        [
+            "SELECT 1\nGOTO done\ndone: SELECT 1",
+            "SELECT 1 -- GO\nSELECT 2",
+            "SELECT [GO] FROM t",
+            "SELECT 'a:b' AS exited",
+        ];
+
+        Assert.All(hazards, batch => Assert.NotNull(SqlServerSqlGenerator.ScriptHazard(batch)));
+        Assert.All(safe, batch => Assert.Null(SqlServerSqlGenerator.ScriptHazard(batch)));
+    }
+
+    [Fact]
+    public void A_module_containing_a_go_line_is_still_generated_for_batch_by_batch_execution()
+    {
+        var id = new DatabaseObjectId("dbo", "p", DatabaseObjectType.StoredProcedure);
+        var detail = new CreateModuleDetail(id, new ModuleDefinition("CREATE PROCEDURE p AS\nSELECT 'x\nGO\n'", false, false, true, true), IsAlter: false);
+
+        Assert.True(_generator.Generate(new PlannedChange(id, SynchronizationOperationType.CreateObject, OperationRisk.Low, false, "test", [], 0, detail)).IsSuccess);
+    }
+
+    [Fact]
+    public void A_script_with_a_hazardous_batch_stops_at_the_top_and_shows_that_batch_commented_out()
+    {
+        var hostile = new DatabaseObjectId("dbo", "x\nGO\nDROP TABLE dbo.Victim;\n--", DatabaseObjectType.Table);
+        var table = new TableDefinition(hostile, [Column("Id")], null, [], [], [], [], []);
+        var create = Generate(new CreateTableDetail(table));
+        var plan = SynchronizationPlan.Create(
+            Guid.NewGuid(), Guid.NewGuid(), SynchronizationDirection.SourceToTarget, Guid.NewGuid(),
+            ResolvedDatabaseIdentity.Create(DatabaseProviderType.SqlServer, "db01", "Sales", 5, "SQL Server 2022", null), EnvironmentLabel.None,
+            "schema", SynchronizationPlanOptions.Default,
+            [new SynchronizationOperation(Guid.NewGuid(), 0, hostile, SynchronizationOperationType.CreateObject, OperationRisk.Low, false, [], "Create table", create, null, [])],
+            [], DateTimeOffset.UnixEpoch);
+
+        var lines = _generator.BuildScript(plan).ReplaceLineEndings("\n").Split('\n');
+
+        var firstStatement = lines.First(line => line.Length > 0 && !line.StartsWith("--", StringComparison.Ordinal));
+        Assert.StartsWith("RAISERROR(N'This script contains definitions that cannot be shown", firstStatement, StringComparison.Ordinal);
+        Assert.Equal("SET NOEXEC ON;", lines[Array.IndexOf(lines, firstStatement) + 1]);
+        Assert.DoesNotContain(lines, line => line.StartsWith("DROP TABLE", StringComparison.Ordinal) || line.StartsWith("CREATE TABLE", StringComparison.Ordinal));
+        Assert.Contains(lines, line => line.Contains("Not runnable from this script", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -131,7 +217,8 @@ public sealed class SqlServerSqlGeneratorTests
     [Fact]
     public void The_script_stops_in_the_wrong_database_and_comments_out_data_operations()
     {
-        var identity = ResolvedDatabaseIdentity.Create(DatabaseProviderType.SqlServer, "db01", "Sales'DB", 5, "SQL Server 2022", null);
+        var databaseGuid = Guid.Parse("4f1c1a52-0d3e-4c3c-9a4b-2b7f6d1e8a90");
+        var identity = ResolvedDatabaseIdentity.Create(DatabaseProviderType.SqlServer, "db01", "Sales'DB", 5, "SQL Server 2022", null, databaseGuid);
         var operations = new[]
         {
             new SynchronizationOperation(Guid.NewGuid(), 0, _table, SynchronizationOperationType.CreateObject, OperationRisk.Low, false, [], "Create table", ["CREATE TABLE x (Id int);"], null, []),
@@ -139,11 +226,16 @@ public sealed class SqlServerSqlGeneratorTests
         };
         var plan = SynchronizationPlan.Create(
             Guid.NewGuid(), Guid.NewGuid(), SynchronizationDirection.SourceToTarget, Guid.NewGuid(), identity, EnvironmentLabel.Production,
-            "schema", SynchronizationPlanOptions.Default, operations, [new PlanIssue(null, "Not this one")], DateTimeOffset.UnixEpoch);
+            "schema", SynchronizationPlanOptions.Default, operations, [new PlanIssue(null, $"Not this one{LineSeparator}DROP TABLE x{NextLine}--\rSELECT 1")], DateTimeOffset.UnixEpoch);
 
         var script = _generator.BuildScript(plan);
 
-        Assert.Contains("IF DB_NAME() <> N'Sales''DB'", script, StringComparison.Ordinal);
+        Assert.Contains("IF DB_NAME() COLLATE Latin1_General_BIN2 <> N'Sales''DB' COLLATE Latin1_General_BIN2", script, StringComparison.Ordinal);
+        Assert.Contains("<> UPPER(N'db01')", script, StringComparison.Ordinal);
+        Assert.Contains($"service_broker_guid = '{databaseGuid:D}'", script, StringComparison.Ordinal);
+        Assert.Contains("-- - Not this one DROP TABLE x -- SELECT 1", script, StringComparison.Ordinal);
+        Assert.DoesNotContain(LineSeparator, script);
+        Assert.DoesNotContain(NextLine, script);
         Assert.Contains("SET NOEXEC ON;", script, StringComparison.Ordinal);
         Assert.Contains(plan.ContentHash, script, StringComparison.Ordinal);
         Assert.Contains("(Production)", script, StringComparison.Ordinal);

@@ -84,6 +84,38 @@ public sealed class SqlServerSynchronizationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task Tables_are_created_after_the_functions_and_sequences_their_columns_checks_and_defaults_use()
+    {
+        server.RequireServer();
+        var source = await CreateDatabaseAsync("""
+            CREATE FUNCTION dbo.Twice (@Value int) RETURNS int WITH SCHEMABINDING AS BEGIN RETURN @Value * 2 END;
+            GO
+            CREATE FUNCTION dbo.IsPositive (@Value int) RETURNS bit WITH SCHEMABINDING AS BEGIN RETURN CASE WHEN @Value > 0 THEN 1 ELSE 0 END END;
+            GO
+            CREATE SEQUENCE dbo.Numbers AS int START WITH 1;
+            CREATE TABLE dbo.Ledger (
+                Id int NOT NULL CONSTRAINT DF_Ledger_Id DEFAULT (NEXT VALUE FOR dbo.Numbers),
+                Amount int NOT NULL CONSTRAINT CK_Ledger_Amount CHECK (dbo.IsPositive(Amount) = 1),
+                Doubled AS (dbo.Twice(Amount)));
+            """);
+        var target = await CreateDatabaseAsync("");
+
+        var ledger = (await ReadAsync(source)).Schemas.SelectMany(item => item.Tables).Single(table => table.Id.ObjectName == "Ledger");
+        Assert.Equal(["IsPositive", "Numbers", "Twice"], ledger.EffectiveExpressionReferences.Select(reference => reference.ObjectName));
+
+        var (plan, _) = await PlanAsync(source, target, allowDestructive: false);
+        Assert.True(plan.NotIncluded.Count == 0, Issues(plan));
+        var createTable = plan.Operations.Single(operation => operation.ObjectId.ObjectType == DatabaseObjectType.Table);
+        Assert.All(
+            plan.Operations.Where(operation => operation.ObjectId.ObjectType is DatabaseObjectType.ScalarFunction or DatabaseObjectType.Sequence),
+            prerequisite => Assert.True(prerequisite.Order < createTable.Order, prerequisite.Description));
+        await ApplyAsync(target, plan);
+
+        var after = await CompareAsync(source, target);
+        Assert.False(after.HasDifferences, Describe(after));
+    }
+
+    [Fact]
     public async Task A_generated_plan_alters_and_drops_until_the_schemas_match()
     {
         server.RequireServer();

@@ -23,6 +23,9 @@ public sealed class SynchronizationPlan
         SynchronizationDirection direction,
         Guid writeTargetConnectionId,
         string writeTargetDatabaseName,
+        string writeTargetServerName,
+        Guid? writeTargetDatabaseGuid,
+        string? copySideIdentityFingerprint,
         EnvironmentLabel writeTargetEnvironment,
         string writeTargetIdentityFingerprint,
         string writeTargetSchemaFingerprint,
@@ -36,6 +39,9 @@ public sealed class SynchronizationPlan
         Direction = direction;
         WriteTargetConnectionId = writeTargetConnectionId;
         WriteTargetDatabaseName = writeTargetDatabaseName;
+        WriteTargetServerName = writeTargetServerName;
+        WriteTargetDatabaseGuid = writeTargetDatabaseGuid;
+        CopySideIdentityFingerprint = copySideIdentityFingerprint;
         WriteTargetEnvironment = writeTargetEnvironment;
         WriteTargetIdentityFingerprint = writeTargetIdentityFingerprint;
         WriteTargetSchemaFingerprint = writeTargetSchemaFingerprint;
@@ -58,6 +64,19 @@ public sealed class SynchronizationPlan
 
     /// <summary>The write target's database name as the server reported it.</summary>
     public string WriteTargetDatabaseName { get; }
+
+    /// <summary>The write target's server name as the server reported it.</summary>
+    public string WriteTargetServerName { get; }
+
+    /// <summary>The write target's database GUID, when the server reports one.</summary>
+    public Guid? WriteTargetDatabaseGuid { get; }
+
+    /// <summary>
+    /// The identity fingerprint of the database copied from, as compared, or <see langword="null"/> when the plan was
+    /// built without it. Informational: it is covered by the content hash and shown for review, but not revalidated
+    /// before execution, since nothing is written to that database.
+    /// </summary>
+    public string? CopySideIdentityFingerprint { get; }
 
     /// <summary>The write target profile's environment label when the plan was created.</summary>
     public EnvironmentLabel WriteTargetEnvironment { get; }
@@ -103,7 +122,8 @@ public sealed class SynchronizationPlan
         SynchronizationPlanOptions options,
         IEnumerable<SynchronizationOperation> operations,
         IEnumerable<PlanIssue> notIncluded,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        ResolvedDatabaseIdentity? copySide = null)
     {
         ArgumentNullException.ThrowIfNull(writeTarget);
         ArgumentException.ThrowIfNullOrWhiteSpace(writeTargetSchemaFingerprint);
@@ -129,6 +149,9 @@ public sealed class SynchronizationPlan
             direction,
             writeTargetConnectionId,
             writeTarget.DatabaseName,
+            writeTarget.ServerName,
+            writeTarget.DatabaseGuid,
+            copySide?.IdentityFingerprint,
             writeTargetEnvironment,
             writeTarget.IdentityFingerprint,
             writeTargetSchemaFingerprint,
@@ -147,6 +170,9 @@ public sealed class SynchronizationPlan
             .Add("direction", Direction)
             .Add("writeTargetConnection", WriteTargetConnectionId)
             .Add("writeTargetDatabase", WriteTargetDatabaseName)
+            .Add("writeTargetServer", WriteTargetServerName)
+            .Add("writeTargetGuid", WriteTargetDatabaseGuid?.ToString("D"))
+            .Add("copySideIdentity", CopySideIdentityFingerprint)
             .Add("writeTargetEnvironment", WriteTargetEnvironment)
             .Add("writeTargetIdentity", WriteTargetIdentityFingerprint)
             .Add("writeTargetSchema", WriteTargetSchemaFingerprint)

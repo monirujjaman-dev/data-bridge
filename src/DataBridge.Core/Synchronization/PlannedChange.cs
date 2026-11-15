@@ -87,6 +87,7 @@ public sealed class PlanDraft
 {
     private readonly List<PlannedChange> _changes = [];
     private readonly List<HashSet<int>> _dependencies = [];
+    private readonly List<HashSet<int>> _partners = [];
     private readonly List<PlanIssue> _issues = [];
 
     public IReadOnlyList<PlannedChange> Changes => _changes;
@@ -98,6 +99,7 @@ public sealed class PlanDraft
         ArgumentNullException.ThrowIfNull(change);
         _changes.Add(change);
         _dependencies.Add([]);
+        _partners.Add([]);
         return _changes.Count - 1;
     }
 
@@ -111,6 +113,24 @@ public sealed class PlanDraft
     }
 
     public IReadOnlyCollection<int> DependenciesOf(int change) => _dependencies[change];
+
+    /// <summary>
+    /// Records that two changes stand or fall together: if either is left out, so is the other. Used for a
+    /// constraint's drop and recreate, and for a drop added because a selected drop needs it, so a plan never drops
+    /// something it promised to recreate, or removes a prerequisite for a drop it does not make.
+    /// </summary>
+    public void Bind(int change, int partner)
+    {
+        if (change == partner)
+        {
+            return;
+        }
+
+        _partners[change].Add(partner);
+        _partners[partner].Add(change);
+    }
+
+    public IReadOnlyCollection<int> PartnersOf(int change) => _partners[change];
 
     public void Report(DatabaseObjectId? objectId, string message) => _issues.Add(new PlanIssue(objectId, message));
 }

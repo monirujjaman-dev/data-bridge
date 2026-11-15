@@ -230,4 +230,116 @@ public sealed class SchemaSynchronizationPlannerTests
         Assert.True(SchemaSynchronizationPlanner.IsLossy(money, money with { Scale = 1, Precision = 9 }));
         Assert.True(SchemaSynchronizationPlanner.IsLossy(money, money with { Precision = 11, Scale = 4 }));
     }
+
+    [Fact]
+    public void Collation_changes_on_non_unicode_text_and_datetime_to_short_datetime2_are_lossy()
+    {
+        var latin = Text("A", 10) with { SqlTypeName = "varchar" };
+        Assert.True(SchemaSynchronizationPlanner.IsLossy(latin, latin with { CollationName = "Cyrillic_General_CI_AS" }));
+        Assert.False(SchemaSynchronizationPlanner.IsLossy(latin, latin with { CollationName = "latin1_general_ci_as" }));
+        Assert.False(SchemaSynchronizationPlanner.IsLossy(Text("A", 10), Text("A", 10, collation: "Cyrillic_General_CI_AS")));
+        Assert.False(SchemaSynchronizationPlanner.IsLossy(latin, Text("A", 10, collation: "Cyrillic_General_CI_AS")));
+
+        var datetime = Column("A", "datetime");
+        var datetime2 = Column("A", "datetime2") with { Scale = 7 };
+        Assert.False(SchemaSynchronizationPlanner.IsLossy(datetime, datetime2));
+        Assert.False(SchemaSynchronizationPlanner.IsLossy(datetime, datetime2 with { Scale = 3 }));
+        Assert.True(SchemaSynchronizationPlanner.IsLossy(datetime, datetime2 with { Scale = 2 }));
+        Assert.True(SchemaSynchronizationPlanner.IsLossy(datetime, datetime2 with { Scale = null }));
+    }
+
+    [Fact]
+    public void A_column_that_becomes_sparse_on_the_copied_side_is_not_changed_in_place()
+    {
+        var existing = Column("A", "int", nullable: true);
+        var source = Database(InSchema("dbo", Table("T", Column("Id"), existing with { SqlTypeName = "bigint", Options = ColumnOptions.None with { IsSparse = true } })));
+        var target = Database(InSchema("dbo", Table("T", Column("Id"), existing)));
+
+        var (plan, _) = PlanSchema(source, target, [TableId("T")]);
+
+        Assert.DoesNotContain(plan.Operations, operation => operation.ObjectId.ObjectName == "A");
+        Assert.Contains(plan.NotIncluded, issue => issue.Message.Contains("Column dbo.T.A", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_function_a_dropped_table_uses_in_a_check_is_dropped_after_the_table()
+    {
+        var function = new ProgrammableObjectDefinition(
+            new DatabaseObjectId("dbo", "IsPositive", DatabaseObjectType.ScalarFunction),
+            Module("CREATE FUNCTION dbo.IsPositive(@x int) RETURNS bit AS BEGIN RETURN 1 END"));
+        var table = Table("T", Column("Id")) with
+        {
+            CheckConstraints = [new CheckConstraintDefinition("CK_T", false, "([dbo].[IsPositive]([Id])=(1))", false, false)],
+            ExpressionReferences = [new ModuleReference("dbo", "IsPositive")],
+        };
+        var source = Database(InSchema("dbo"));
+        var target = Database(InSchema("dbo", table, function));
+
+        var (plan, _) = PlanSchema(source, target, [table.Id, function.Id], allowDestructive: true);
+
+        var dropTable = plan.Operations.Single(operation => operation.ObjectId == table.Id);
+        var dropFunction = plan.Operations.Single(operation => operation.ObjectId == function.Id);
+        Assert.Contains(dropTable.Id, dropFunction.DependsOn);
+        Assert.True(dropTable.Order < dropFunction.Order);
+    }
+
+    [Fact]
+    public void Dropping_a_function_a_kept_table_uses_warns_that_the_drop_fails()
+    {
+        var function = new ProgrammableObjectDefinition(
+            new DatabaseObjectId("dbo", "Twice", DatabaseObjectType.ScalarFunction),
+            Module("CREATE FUNCTION dbo.Twice(@x int) RETURNS int AS BEGIN RETURN @x * 2 END"));
+        var table = Table("T", Column("Id")) with { ExpressionReferences = [new ModuleReference("dbo", "Twice")] };
+        var source = Database(InSchema("dbo", table with { ExpressionReferences = [] }));
+        var target = Database(InSchema("dbo", table, function));
+
+        var (plan, _) = PlanSchema(source, target, [function.Id], allowDestructive: true);
+
+        var drop = Assert.Single(plan.Operations);
+        Assert.Contains(drop.Warnings, warning => warning.Contains("dbo.T uses it", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("identity")]
+    [InlineData("sparse")]
+    [InlineData("rowguidcol")]
+    public void Identity_sparse_and_rowguidcol_columns_are_not_changed_in_place(string kind)
+    {
+        var narrow = Column("A", "int");
+        var existing = kind switch
+        {
+            "identity" => narrow with { Identity = new IdentitySpecification(1, 1) },
+            "sparse" => narrow with { IsNullable = true, Options = ColumnOptions.None with { IsSparse = true } },
+            _ => Column("A", "uniqueidentifier") with { Options = ColumnOptions.None with { IsRowGuidColumn = true } },
+        };
+        var changed = existing with { SqlTypeName = kind == "rowguidcol" ? "uniqueidentifier" : "bigint", IsNullable = !existing.IsNullable };
+        var source = Database(InSchema("dbo", Table("T", Column("Id"), changed)));
+        var target = Database(InSchema("dbo", Table("T", Column("Id"), existing)));
+
+        var (plan, _) = PlanSchema(source, target, [TableId("T")], allowDestructive: true);
+
+        Assert.Empty(plan.Operations);
+        Assert.Contains(plan.NotIncluded, issue => issue.Message.Contains("cannot be changed in place", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_table_whose_computed_column_uses_a_new_function_is_created_after_it()
+    {
+        var function = new ProgrammableObjectDefinition(
+            new DatabaseObjectId("dbo", "Double", DatabaseObjectType.ScalarFunction),
+            Module("CREATE FUNCTION dbo.Double(@x int) RETURNS int WITH SCHEMABINDING AS BEGIN RETURN @x * 2 END"));
+        var table = Table("T", Column("Id"), Column("Twice") with { Computed = new ComputedSpecification("([dbo].[Double]([Id]))", false) }) with
+        {
+            ExpressionReferences = [new ModuleReference("dbo", "Double")],
+        };
+        var source = Database(InSchema("dbo", table, function));
+        var target = Database(InSchema("dbo"));
+
+        var (plan, _) = PlanSchema(source, target, [TableId("T"), function.Id]);
+
+        var create = plan.Operations.Single(operation => operation.ObjectId == table.Id);
+        var createFunction = plan.Operations.Single(operation => operation.ObjectId == function.Id);
+        Assert.True(createFunction.Order < create.Order);
+        Assert.Contains(createFunction.Id, create.DependsOn);
+    }
 }

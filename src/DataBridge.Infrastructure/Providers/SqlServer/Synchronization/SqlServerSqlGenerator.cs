@@ -19,6 +19,13 @@ namespace DataBridge.Infrastructure.Providers.SqlServer.Synchronization;
 /// </summary>
 internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
 {
+    private const char LineSeparator = (char)0x2028;
+    private const char ParagraphSeparator = (char)0x2029;
+
+    /// <summary>Every sequence an editor may treat as a line break (CR LF first, so it counts once).</summary>
+    private static readonly string[] _lineBreaks =
+        ["\r\n", "\r", "\n", ((char)0x0B).ToString(), ((char)0x0C).ToString(), ((char)0x85).ToString(), LineSeparator.ToString(), ParagraphSeparator.ToString()];
+
     public DatabaseProviderType ProviderType => DatabaseProviderType.SqlServer;
 
     public Result<IReadOnlyList<string>> Generate(PlannedChange change)
@@ -66,10 +73,30 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
         Comment(script, $"Created:      {plan.CreatedAtUtc.ToString("u", CultureInfo.InvariantCulture)}");
         Comment(script, "Review only. Running this script yourself bypasses DataBridge's approval, revalidation and drift checks.");
         Comment(script, "There is no transaction around the whole script; a failure part-way leaves earlier steps applied.");
+        Comment(script, "It stops unless the database name, server name and database GUID match, so it also stops after a failover or a restore.");
         script.AppendLine();
-        script.AppendLine(CultureInfo.InvariantCulture, $"IF DB_NAME() <> {Literal(plan.WriteTargetDatabaseName)}");
+        var hazardous = plan.Operations
+            .Where(operation => !operation.IsDataOperation && operation.SqlBatches.Any(batch => ScriptHazard(batch) is not null))
+            .Select(operation => operation.Id)
+            .ToHashSet();
+        if (hazardous.Count > 0)
+        {
+            // A batch the tool would split or interpret is shown commented out, so the script as a whole must not run.
+            script.AppendLine("RAISERROR(N'This script contains definitions that cannot be shown as runnable SQL; they are commented out below. Do not run it.', 16, 1);");
+            script.AppendLine("SET NOEXEC ON;");
+            script.AppendLine("GO");
+        }
+
+        // The database name, the server and (when known) the database GUID must all match the planned write target.
+        script.AppendLine(CultureInfo.InvariantCulture, $"IF DB_NAME() COLLATE Latin1_General_BIN2 <> {Literal(plan.WriteTargetDatabaseName)} COLLATE Latin1_General_BIN2");
+        script.AppendLine(CultureInfo.InvariantCulture, $"    OR UPPER(CONVERT(nvarchar(256), SERVERPROPERTY('ServerName'))) COLLATE Latin1_General_BIN2 <> UPPER({Literal(plan.WriteTargetServerName)}) COLLATE Latin1_General_BIN2");
+        if (plan.WriteTargetDatabaseGuid is { } guid)
+        {
+            script.AppendLine(CultureInfo.InvariantCulture, $"    OR NOT EXISTS (SELECT 1 FROM sys.databases WHERE database_id = DB_ID() AND service_broker_guid = '{guid:D}')");
+        }
+
         script.AppendLine("BEGIN");
-        script.AppendLine(CultureInfo.InvariantCulture, $"    RAISERROR(N'This script must run in database %s.', 16, 1, {Literal(plan.WriteTargetDatabaseName)});");
+        script.AppendLine(CultureInfo.InvariantCulture, $"    RAISERROR(N'This script must run in database %s on server %s.', 16, 1, {Literal(plan.WriteTargetDatabaseName)}, {Literal(plan.WriteTargetServerName)});");
         script.AppendLine("    SET NOEXEC ON;");
         script.AppendLine("END");
         script.AppendLine("GO");
@@ -90,6 +117,18 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
                 foreach (var line in operation.SqlBatches.SelectMany(batch => batch.Split('\n')))
                 {
                     Comment(script, "   " + line.TrimEnd('\r'));
+                }
+
+                continue;
+            }
+
+            if (hazardous.Contains(operation.Id))
+            {
+                var reason = operation.SqlBatches.Select(ScriptHazard).First(hazard => hazard is not null);
+                Comment(script, $"   Not runnable from this script: {reason}. Its SQL, for review only:");
+                foreach (var batch in operation.SqlBatches)
+                {
+                    Comment(script, "   " + batch);
                 }
 
                 continue;
@@ -199,7 +238,7 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
     {
         var column = detail.Column;
         var existing = detail.Existing;
-        if (column.Identity is not null || existing.Identity is not null || existing.EffectiveOptions.IsSparse || existing.EffectiveOptions.IsRowGuidColumn)
+        if (FixedInPlace(column) || FixedInPlace(existing))
         {
             throw new UnsupportedChangeException("Identity, sparse and ROWGUIDCOL columns cannot be changed with ALTER COLUMN.");
         }
@@ -207,6 +246,9 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
         var collation = column.CollationName is { } name ? $" COLLATE {Option(name)}" : "";
         return $"ALTER TABLE {Quote(detail.Table)} ALTER COLUMN {Quote(existing.Name)} {TypeName(column)}{collation}{(column.IsNullable ? " NULL" : " NOT NULL")};";
     }
+
+    private static bool FixedInPlace(ColumnDefinition column) =>
+        column.Identity is not null || column.EffectiveOptions.IsSparse || column.EffectiveOptions.IsRowGuidColumn;
 
     /// <summary>A column's type with its facets; alias types are schema-qualified and quoted.</summary>
     internal static string TypeName(ColumnDefinition column)
@@ -322,12 +364,152 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
     private static IReadOnlyList<string> Module(CreateModuleDetail detail)
     {
         var text = detail.Module.Text ?? throw new UnsupportedChangeException("The definition is not visible.");
-        var statement = detail.IsAlter ? CreateOrAlter(text) : text.Trim();
+        var qualified = QualifyHeader(text, detail.Id);
+        var statement = detail.IsAlter ? CreateOrAlter(qualified) : qualified.Trim();
         return
         [
             $"SET ANSI_NULLS {OnOff(detail.Module.UsesAnsiNulls)};\nSET QUOTED_IDENTIFIER {OnOff(detail.Module.UsesQuotedIdentifier)};",
             statement,
         ];
+    }
+
+    /// <summary>
+    /// Makes sure a stored definition creates the object the plan names: its header must name <paramref name="id"/>
+    /// (and, for a trigger, its table). A name without a schema is qualified, because it would otherwise resolve to the
+    /// executing login's default schema; any other name, for example the old name of a module renamed with
+    /// <c>sp_rename</c>, is refused.
+    /// </summary>
+    internal static string QualifyHeader(string definition, DatabaseObjectId id)
+    {
+        var position = SkipTrivia(definition, 0);
+        if (!IsKeyword(definition, position, "CREATE"))
+        {
+            throw new UnsupportedChangeException("The definition does not start with CREATE.");
+        }
+
+        position = SkipTrivia(definition, position + "CREATE".Length);
+        if (IsKeyword(definition, position, "OR"))
+        {
+            position = SkipTrivia(definition, position + "OR".Length);
+            if (!IsKeyword(definition, position, "ALTER"))
+            {
+                throw new UnsupportedChangeException("The definition's header could not be read.");
+            }
+
+            position = SkipTrivia(definition, position + "ALTER".Length);
+        }
+
+        string[] keywords = id.ObjectType switch
+        {
+            DatabaseObjectType.View => ["VIEW"],
+            DatabaseObjectType.StoredProcedure => ["PROCEDURE", "PROC"],
+            DatabaseObjectType.ScalarFunction or DatabaseObjectType.TableValuedFunction => ["FUNCTION"],
+            DatabaseObjectType.Trigger => ["TRIGGER"],
+            _ => throw new UnsupportedChangeException($"{id.ObjectType} is not a module."),
+        };
+        var keyword = keywords.FirstOrDefault(word => IsKeyword(definition, position, word))
+            ?? throw new UnsupportedChangeException($"The definition does not create a {keywords[0].ToLowerInvariant()}.");
+        position = SkipTrivia(definition, position + keyword.Length);
+
+        var result = Qualify(definition, ref position, id.SchemaName, id.ObjectName, "object", StringComparison.Ordinal);
+        if (id.ObjectType == DatabaseObjectType.Trigger)
+        {
+            var offset = result.Length - definition.Length;
+            position = SkipTrivia(result, position + offset);
+            if (!IsKeyword(result, position, "ON"))
+            {
+                throw new UnsupportedChangeException("The trigger's header could not be read.");
+            }
+
+            position = SkipTrivia(result, position + "ON".Length);
+            result = Qualify(result, ref position, id.SchemaName, id.ParentObjectName!, "table", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Reads the one- or two-part name at <paramref name="position"/>, checks it and qualifies it if needed. The schema
+    /// is compared ignoring case, since a header may spell an existing schema differently. The object's own name is
+    /// compared exactly: the engine stores it as the header spelled it, so a header differing even in case names
+    /// something else, for example before a rename to a case variant in a case-sensitive database. A trigger's table
+    /// is compared ignoring case, since the header may spell an existing table differently.
+    /// </summary>
+    private static string Qualify(string text, ref int position, string schema, string name, string what, StringComparison nameComparison)
+    {
+        var start = position;
+        var parts = new List<string>();
+        while (true)
+        {
+            parts.Add(ReadIdentifier(text, ref position));
+            var next = SkipTrivia(text, position);
+            if (next < text.Length && text[next] == '.')
+            {
+                position = SkipTrivia(text, next + 1);
+                continue;
+            }
+
+            break;
+        }
+
+        var sameName = string.Equals(parts[^1], name, nameComparison);
+        switch (parts.Count)
+        {
+            case 2 when sameName && string.Equals(parts[0], schema, StringComparison.OrdinalIgnoreCase):
+                return text;
+            case 1 when sameName:
+                return string.Concat(text.AsSpan(0, start), Quote(schema), ".", text.AsSpan(start));
+            default:
+                throw new UnsupportedChangeException(
+                    $"The definition names the {what} {string.Join(".", parts)}, not {schema}.{name}; it may have been renamed. Change it manually.");
+        }
+    }
+
+    private static string ReadIdentifier(string text, ref int position)
+    {
+        if (position >= text.Length)
+        {
+            throw new UnsupportedChangeException("The definition's header could not be read.");
+        }
+
+        var (open, close) = text[position] switch
+        {
+            '[' => ('[', ']'),
+            '"' => ('"', '"'),
+            _ => ('\0', '\0'),
+        };
+        if (open != '\0')
+        {
+            var builder = new StringBuilder();
+            position++;
+            while (position < text.Length)
+            {
+                if (text[position] == close)
+                {
+                    if (position + 1 < text.Length && text[position + 1] == close)
+                    {
+                        builder.Append(close);
+                        position += 2;
+                        continue;
+                    }
+
+                    position++;
+                    return builder.ToString();
+                }
+
+                builder.Append(text[position++]);
+            }
+
+            throw new UnsupportedChangeException("The definition's header could not be read.");
+        }
+
+        var begin = position;
+        while (position < text.Length && (char.IsLetterOrDigit(text[position]) || text[position] is '_' or '@' or '#' or '$'))
+        {
+            position++;
+        }
+
+        return position > begin ? text[begin..position] : throw new UnsupportedChangeException("The definition's header could not be read.");
     }
 
     /// <summary>
@@ -494,9 +676,57 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
     {
         foreach (var line in text.Split('\n'))
         {
-            script.Append("-- ").AppendLine(line.TrimEnd('\r'));
+            // Any other line break (bare CR, NEL, line or paragraph separator) would end the comment in some tools.
+            var safe = string.Create(line.Length, line, static (span, source) =>
+            {
+                for (var index = 0; index < source.Length; index++)
+                {
+                    var character = source[index];
+                    span[index] = char.IsControl(character) || character is LineSeparator or ParagraphSeparator ? ' ' : character;
+                }
+            });
+            script.Append("-- ").AppendLine(safe.TrimEnd());
         }
     }
+
+    /// <summary>
+    /// Why a batch cannot be written to a script as runnable SQL, or <see langword="null"/>. SSMS and sqlcmd read a
+    /// script line by line before SQL Server sees it, inside brackets, strings and comments too: a line starting with
+    /// <c>GO</c> ends the batch, and in SQLCMD mode lines starting with <c>:</c>, <c>!!</c>, <c>exit</c>, <c>quit</c>,
+    /// <c>reset</c> or <c>ed</c> are commands and <c>$(</c> is a variable. Text copied from a database could use any of
+    /// them to run statements the plan does not contain, so they are refused, broadly (a false match only means the
+    /// operation is shown commented out). Every Unicode line break counts, because editors split lines on them.
+    /// DataBridge itself sends each batch separately, so this applies only to the exported script.
+    /// </summary>
+    internal static string? ScriptHazard(string batch)
+    {
+        if (batch.Contains("$(", StringComparison.Ordinal))
+        {
+            return "it contains $(, which SQLCMD mode treats as a variable";
+        }
+
+        foreach (var line in batch.Split(_lineBreaks, StringSplitOptions.None))
+        {
+            var start = line.TrimStart();
+            if (SeparatorLine().IsMatch(start))
+            {
+                return "a line in it starts with GO, which would end the batch";
+            }
+
+            if (start.StartsWith(':') || start.StartsWith("!!", StringComparison.Ordinal) || SqlcmdCommandLine().IsMatch(start))
+            {
+                return "a line in it looks like a sqlcmd command";
+            }
+        }
+
+        return null;
+    }
+
+    [GeneratedRegex(@"^GO(?![A-Za-z0-9_@#$])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex SeparatorLine();
+
+    [GeneratedRegex(@"^(?:exit|quit|reset|ed)(?![A-Za-z0-9_@#$])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex SqlcmdCommandLine();
 
     [GeneratedRegex("^[a-z][a-z0-9_]*$", RegexOptions.CultureInvariant)]
     private static partial Regex SystemTypeName();

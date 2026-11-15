@@ -345,8 +345,13 @@ As implemented in Phase 5:
     Production write target the database name typed (ADR-0015). It is
     bound to the content hash; `PlanApprovalPolicy.Authorizes` checks
     it again against the write target resolved before execution.
--   The exported script is for review: it stops in the wrong database
-    and shows data operations as commented-out templates.
+-   The exported script is for review: it stops (`SET NOEXEC ON`)
+    unless the database name, server name and, when known, database
+    GUID match the plan's write target, and shows data operations as
+    commented-out templates. Text from the databases is written into
+    comments with line breaks removed. The plan also records the copied
+    side's identity fingerprint; all of these are covered by the
+    content hash.
 
 ### Risk classification baseline
 
