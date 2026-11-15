@@ -21,6 +21,9 @@
     <DataTemplate DataType="vm:DataComparisonViewModel">
       <views:DataComparisonView />
     </DataTemplate>
+    <DataTemplate DataType="vm:SynchronizationViewModel">
+      <views:SynchronizationView />
+    </DataTemplate>
   </Application.DataTemplates>
 
 </Application>

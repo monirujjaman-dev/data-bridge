@@ -20,6 +20,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly ConnectionsViewModel _connections;
     private readonly SchemaComparisonViewModel _schemaComparison;
     private readonly DataComparisonViewModel _dataComparison;
+    private readonly SynchronizationViewModel _synchronization;
     private readonly ILogger<MainWindowViewModel> _logger;
 
     public MainWindowViewModel(
@@ -27,18 +28,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         ConnectionsViewModel connections,
         SchemaComparisonViewModel schemaComparison,
         DataComparisonViewModel dataComparison,
+        SynchronizationViewModel synchronization,
         ILogger<MainWindowViewModel> logger)
     {
         _localDataStore = localDataStore;
         _connections = connections;
         _schemaComparison = schemaComparison;
         _dataComparison = dataComparison;
+        _synchronization = synchronization;
         _logger = logger;
         NavigationItems =
         [
             new NavigationItem("Connections", connections),
             new NavigationItem("Schema comparison", schemaComparison),
             new NavigationItem("Data comparison", dataComparison),
+            new NavigationItem("Synchronization", synchronization),
         ];
         SelectedNavigationItem = NavigationItems[0];
     }
@@ -108,6 +112,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         else if (value?.Page == _dataComparison && _dataComparison.LoadCommand.CanExecute(null))
         {
             _dataComparison.LoadCommand.Execute(null);
+        }
+        else if (value?.Page == _synchronization && _synchronization.LoadCommand.CanExecute(null))
+        {
+            _synchronization.LoadCommand.Execute(null);
         }
     }
 }

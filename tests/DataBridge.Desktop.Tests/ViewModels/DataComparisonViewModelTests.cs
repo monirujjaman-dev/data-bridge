@@ -32,7 +32,7 @@ public sealed class DataComparisonViewModelTests : IDisposable
     {
         await _fixture.StartAsync();
 
-        Assert.Equal("Data comparison", _fixture.MainWindow.NavigationItems[^1].Title);
+        Assert.Contains(_fixture.MainWindow.NavigationItems, item => item.Title == "Data comparison");
     }
 
     [Fact]
