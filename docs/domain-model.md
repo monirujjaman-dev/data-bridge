@@ -1,6 +1,6 @@
 # DataBridge --- Domain Model
 
-**Status:** Approved baseline (revision 4, 2026-11-15)
+**Status:** Approved baseline (revision 5, 2026-11-15)
 
 The C# shapes below are illustrative contracts, not final code. Names,
 fields and invariants are binding; exact signatures may be refined in
@@ -76,8 +76,12 @@ serializable profile objects or logs.
 
 `ResolvedDatabaseIdentity` is what the server reports after connecting,
 not what the profile says. It drives the same-database warning, the
-route sign in the UI and write-target revalidation. Environment labels
-are an open product decision (`requirements.md` §10).
+route sign in the UI and write-target revalidation.
+
+`DatabaseConnection` also has an `EnvironmentLabel Environment`
+(`None`, `Development`, `Test`, `Staging`, `Production`), chosen by the
+user. A plan records its write target's label; a Production write
+target requires typing the database name to approve (ADR-0015).
 
 ## 4. Schema model
 
@@ -451,20 +455,27 @@ public enum PlanStatus
 }
 
 public sealed record SynchronizationPlanOptions(
-    bool AllowDestructiveOperations,  // default false
-    int BatchSize);
+    bool AllowDestructiveOperations = false,
+    int BatchSize = 1000,
+    long LargeRowCountThreshold = 10_000);   // more rows than this: at least High risk
 
-public sealed record SynchronizationPlan(
-    Guid Id,
-    Guid ComparisonSessionId,
-    SynchronizationDirection Direction,
-    Guid WriteTargetConnectionId,
-    string WriteTargetIdentityFingerprint,
-    string WriteTargetSchemaFingerprint,
-    SynchronizationPlanOptions Options,
-    IReadOnlyList<SynchronizationOperation> Operations,
-    string ContentHash,               // over all fields above and operations
-    DateTimeOffset CreatedAtUtc);
+// A sealed class, not a record: there is no way to change a plan after Create.
+public sealed class SynchronizationPlan
+{
+    Guid Id;
+    Guid ComparisonSessionId;
+    SynchronizationDirection Direction;
+    Guid WriteTargetConnectionId;
+    string WriteTargetDatabaseName;
+    EnvironmentLabel WriteTargetEnvironment;
+    string WriteTargetIdentityFingerprint;
+    string WriteTargetSchemaFingerprint;      // SchemaFingerprint of the write target as compared
+    SynchronizationPlanOptions Options;
+    IReadOnlyList<SynchronizationOperation> Operations;
+    IReadOnlyList<PlanIssue> NotIncluded;     // selected differences left out, with the reason
+    DateTimeOffset CreatedAtUtc;
+    string ContentHash;                       // over every field above and every operation
+}
 
 public sealed record SynchronizationOperation(
     Guid Id,
@@ -473,18 +484,29 @@ public sealed record SynchronizationOperation(
     SynchronizationOperationType Type,
     OperationRisk Risk,
     bool IsDestructive,
-    bool RequiresExplicitApproval,
-    IReadOnlyList<Guid> DependsOn,
+    IReadOnlyList<Guid> DependsOn,    // all earlier in Order
     string Description,
-    string? GeneratedSql,             // DML: parameterized template, never row values
+    IReadOnlyList<string> SqlBatches, // DML: parameterized template, never row values
     long? EstimatedAffectedRows,
-    IReadOnlyList<string> Warnings);  // e.g. triggers that will fire
+    IReadOnlyList<string> Warnings,   // e.g. triggers that will fire
+    RowChangeSet? Rows)               // data operations only (ADR-0016)
+{
+    bool RequiresExplicitApproval => IsDestructive || Risk >= OperationRisk.High;
+}
+
+public sealed record RowChangeSet(
+    string StoreId,                   // local change set file
+    DifferenceStatus Status,          // which rows of the stored table
+    IReadOnlyList<string> KeyColumns,
+    IReadOnlyList<string> Columns,    // columns written
+    long RowCount,
+    string ContentHash);              // SHA-256 over the stored keys and fingerprints
 
 public sealed record PlanApproval(
     Guid PlanId,
     string ApprovedContentHash,
     string ConfirmedWriteTargetIdentityFingerprint,
-    IReadOnlyList<Guid> ApprovedDestructiveOperationIds,
+    IReadOnlyList<Guid> ApprovedOperationIds,   // every High, Critical and destructive operation
     DateTimeOffset ApprovedAtUtc);
 ```
 
@@ -498,8 +520,11 @@ A plan is executable only when a `PlanApproval` exists whose
 confirmed write-target fingerprint matches the write target resolved
 immediately before execution.
 
-How data operations reference the rows they change without holding
-them in memory is an open decision (`architecture.md` §16).
+Approval (`PlanApprovalPolicy`) also requires a non-empty plan, the
+write target confirmed, and, for a Production write target, the
+database name typed exactly. Data operations reference the rows they
+change through a `RowChangeSet` recorded during comparison, never
+holding the rows (ADR-0016).
 
 ## 10. Execution manifest
 
@@ -555,6 +580,12 @@ Track:
 
 ## 12. Revision history
 
+-   **Revision 5 (2026-11-15):** environment labels (ADR-0015); plans
+    and operations as implemented in Phase 5: plan as an immutable
+    class with the write target's name and label and the differences
+    not included, SQL as batches, `RowChangeSet` for data operations
+    (ADR-0016), approvals of every High, Critical and destructive
+    operation, and the large row count threshold.
 -   **Revision 4 (2026-11-15):** typed data values, data comparison
     outcomes, summaries with reasons and consistency, row fingerprints
     and options as implemented in Phase 4 (ADR-0014).

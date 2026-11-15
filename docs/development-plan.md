@@ -14,8 +14,21 @@ open decision it must close (`requirements.md` §10,
 
 ### Current status (2026-11-15)
 
-Phase 4 is complete; Phase 5 (synchronization planning and SQL
-generation) is next. Decided: key ordering, row streaming and read
+Phase 5 is in progress. Decided: environment labels (ADR-0015),
+data-operation materialization (ADR-0016) and schema synchronization
+scope (ADR-0017). Done: environment labels on profiles, the plan,
+operation and approval model with content hash and immutability,
+dependency ordering with cycle detection, the schema fingerprint, and
+the schema and data planners (`Core/Synchronization`); the plan use
+cases, change set recording and the in-session plan store
+(`Application/Synchronization`); the SQL Server generator, write-target
+inspector and local change set store (`Infrastructure`); integration
+tests that apply generated plans to real databases; and the
+Synchronization screen. Plans are not persisted yet and nothing is
+executed (Phase 6). Acceptance still needs a green CI run on all three
+operating systems and the screen driven against real databases.
+
+Phase 4 is complete. Decided: key ordering, row streaming and read
 consistency (ADR-0014). Done: typed values, key ordering and row
 fingerprints (`Core/Data`), table planning and the ordered merge with
 order and duplicate verification (`Core/Comparison`), the
@@ -345,6 +358,7 @@ Covers: NFR-PER-001, NFR-PORT-001, NFR-TEST-002, AC-13.
 
 ## 13. Revision history
 
+-   **Revision 6 (2026-11-15):** Phase 5 status.
 -   **Revision 5 (2026-11-15):** Phase 4 complete.
 -   **Revision 4 (2026-11-15):** Phase 4 status.
 -   **Revision 3 (2026-11-15):** Phase 3 complete.

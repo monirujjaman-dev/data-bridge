@@ -1,6 +1,6 @@
 # DataBridge --- Architecture
 
-**Status:** Approved baseline (revision 5, 2026-11-15)\
+**Status:** Approved baseline (revision 6, 2026-11-15)\
 **Runtime:** .NET 10\
 **UI:** Avalonia\
 **Architecture:** Clean Architecture, modular monolith
@@ -325,6 +325,29 @@ The application must define read consistency per comparison:
     operations.
 -   Verification is separate from execution success.
 
+As implemented in Phase 5:
+
+-   Planning (`Core/Synchronization`) is pure: the schema and data
+    planners turn selected differences into changes with risk and
+    dependencies, and `PlanAssembler` generates each change's SQL
+    through `ISqlGenerator`, orders the changes (`DependencyOrdering`)
+    and reports cycles and everything left out. Scope and generation
+    rules: ADR-0017. Data operations reference recorded change sets:
+    ADR-0016.
+-   The plan records the write target's identity fingerprint, its
+    `SchemaFingerprint` as compared and its profile's environment
+    label. Validation re-resolves the identity, re-reads the schema,
+    verifies the change sets, and asks `ISynchronizationTargetInspector`
+    for missing permissions and for existing rows that would make an
+    operation fail. Any change invalidates the plan (FR-PLN-012).
+-   Approval needs a validated plan, the write target confirmed, each
+    High, Critical and destructive operation approved, and for a
+    Production write target the database name typed (ADR-0015). It is
+    bound to the content hash; `PlanApprovalPolicy.Authorizes` checks
+    it again against the write target resolved before execution.
+-   The exported script is for review: it stops in the wrong database
+    and shows data operations as commented-out templates.
+
 ### Risk classification baseline
 
 | Risk | Examples |
@@ -349,6 +372,13 @@ SQLite stores:
 
 Use repository abstractions and schema migrations. Do not store full
 row-level differences by default.
+
+The one exception is a synchronization plan's change sets (ADR-0016):
+the key values and fingerprints of the rows a plan changes, in files
+under the local application data folder
+(`Infrastructure/Persistence/ChangeSets`), deleted with their plan or
+after seven days. Plans themselves are kept in memory for the session
+until history arrives in Phase 7.
 
 ### Credential storage
 
@@ -459,7 +489,7 @@ Each of these is recorded as an ADR (0001--0008) in `docs/adr/`; see
 
 | Decision | Needed by | Notes |
 |----------|-----------|-------|
-| Data-operation materialization | Phase 5 | A plan cannot hold every row (product rule 7). Options: re-stream source rows by key at execution and apply only rows whose comparison fingerprint still matches; or stage changed keys in a local or target-side staging table. Whatever is chosen, the reviewed plan must describe exactly what executes, and drift since comparison must be detected, not applied silently. |
+| ~~Data-operation materialization~~ | Phase 5 | Decided in ADR-0016: plans reference the keys and fingerprints recorded during comparison; execution re-checks each row before writing it. |
 | ~~Key ordering strategy~~ | Phase 4 | Decided in ADR-0014: binary-collation ordering with order verification in the merge, exact key matching. |
 | Transaction granularity | Phase 6 | Per operation, per batch or per plan; user-configurable within the limits SQL Server can guarantee. |
 | ~~DacFx adoption~~ | Phase 3 | Decided in ADR-0013: not used for schema reading or comparison in v1; script generation would need its own evaluation. |
@@ -467,6 +497,10 @@ Each of these is recorded as an ADR (0001--0008) in `docs/adr/`; see
 
 ## 17. Revision history
 
+-   **Revision 6 (2026-11-15):** synchronization planning as
+    implemented (§10); change sets in local persistence (§11); closed
+    data-operation materialization (ADR-0016); environment labels
+    (ADR-0015) and schema synchronization scope (ADR-0017).
 -   **Revision 5 (2026-11-15):** key ordering, row streaming and
     consistency decided (ADR-0014).
 -   **Revision 4 (2026-11-15):** schema reading in §7; closed the DacFx
