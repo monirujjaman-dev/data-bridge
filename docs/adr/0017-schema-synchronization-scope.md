@@ -64,7 +64,8 @@ the statements correctly and report everything it leaves out.
     (including a collation change on `char`, `varchar` or `text`,
     whose code page can lose characters, and `datetime` to `datetime2`
     below scale 3); identity, sparse and ROWGUIDCOL columns are not
-    altered in place at all; a
+    altered in place at all, even for changes SQL Server allows (an
+    identity `int` to `bigint`); a
     constraint, key or index on a table the plan creates is Low.
 
 ## Consequences
@@ -77,20 +78,42 @@ the statements correctly and report everything it leaves out.
     text. The generator checks that a definition's header names the
     planned object (and a trigger's table), qualifies a one-part name
     with the planned schema, and refuses any other name, so such a
-    module needs manual work.
+    module needs manual work. Header names are matched under the copied
+    database's case rules, so in a case-insensitive database a header
+    differing only in case is accepted and SQL Server names the new
+    object as the header spells it.
 -   The exported script is read by SSMS or sqlcmd before SQL Server
-    sees it, so an operation whose SQL has a line those tools act on
-    (`GO`, a sqlcmd command such as `:connect` or `!!`, or a `$(`
-    variable; any Unicode line break counts) is shown commented out and
-    the script stops at its first statement. DataBridge's own execution
-    sends batches separately and is not affected.
+    sees it, and those tools act on `GO` lines, sqlcmd commands (`:`,
+    `!!`) and `$(` variables even inside strings and comments, and may
+    track comments differently from SQL Server (nested `/* */`). So each
+    operation's SQL is shown as a comment and run as
+    `EXEC (@Batch)` over its exact text in hex; only generated text, the
+    session-option batches and the identity guard run as plain SQL, and
+    the generator refuses to return a script if any runnable line would
+    be acted on. The script sets the session options SQL Server needs
+    for computed columns, filtered indexes and indexed views (sqlcmd
+    starts with `QUOTED_IDENTIFIER OFF`) and restores them after each
+    module, which runs under its own stored `ANSI_NULLS` and
+    `QUOTED_IDENTIFIER`. Integration tests run exported scripts with the
+    container's `sqlcmd` and as SSMS splits them.
+-   A module waits for the tables it references only when SQL Server
+    checks them as it creates the module (views, table-valued functions
+    and schema-bound modules), and is dropped before them only when it
+    is schema-bound; procedures, triggers and other scalar functions
+    resolve tables when they run. So a table whose check calls a function
+    that reads the table is created and dropped without a cycle; with a
+    schema-bound function it is a real cycle and is reported.
+-   SQL Server refuses to alter or drop a function while a check,
+    default or computed column uses it (error 3729). The plan alters or
+    drops it after the drops of those uses it makes, recreates them
+    after, and warns about uses it keeps.
 -   Expression references are recorded per table, not per column or
-    constraint, so a table's creates and drops are all ordered around
+    constraint, so all of a table's creates and drops are ordered around
     every function and sequence any of its computed columns, checks or
-    defaults use. This can report a false cycle, for example a new
-    column on a table whose check calls a new function that reads that
-    table. Altering a function that a check or computed column uses is
-    not checked in advance and can fail at execution time.
+    defaults use. This over-orders but no longer causes the cycles
+    above; table-valued functions are treated as checking their tables
+    at creation even when multi-statement, because the model does not
+    tell inline and multi-statement ones apart.
 
 ## Alternatives considered
 

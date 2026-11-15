@@ -99,12 +99,12 @@ public sealed class SqlServerFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Runs <paramref name="sql"/> in <c>master</c> as one batch, never splitting on <c>GO</c>, for SQL that holds a
-    /// name which may itself contain a <c>GO</c> line.
+    /// Runs <paramref name="sql"/> as <c>sa</c> in <paramref name="database"/> as one batch, never splitting on
+    /// <c>GO</c>, for SQL that holds a name or definition which may itself contain a <c>GO</c> line.
     /// </summary>
-    private async Task ExecuteOneBatchAsync(string sql, CancellationToken cancellationToken)
+    public async Task ExecuteOneBatchAsync(string sql, CancellationToken cancellationToken, string database = "master")
     {
-        await using var connection = new SqlConnection(ConnectionString("master"));
+        await using var connection = new SqlConnection(ConnectionString(database));
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = sql;

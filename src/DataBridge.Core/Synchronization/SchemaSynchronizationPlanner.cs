@@ -1095,6 +1095,11 @@ public sealed class SchemaSynchronizationPlanner
             warnings.Add("Schema-bound objects reference it; the change fails if it affects them.");
         }
 
+        if (isAlter)
+        {
+            warnings.AddRange(TablesUsingWarnings(copyId, "change"));
+        }
+
         if (copyId.ObjectType == DatabaseObjectType.Trigger)
         {
             warnings.Add("The trigger runs on every matching write to its table from now on.");
@@ -1109,10 +1114,11 @@ public sealed class SchemaSynchronizationPlanner
         var index = Add(
             copyId, isAlter ? SynchronizationOperationType.AlterObject : SynchronizationOperationType.CreateObject, risk, false,
             (isAlter ? "Alter " : "Create ") + $"{Describe(copyId.ObjectType)} {copyId.DisplayName}", warnings, RankOf(copyId.ObjectType),
-            new CreateModuleDetail(copyId, module, isAlter),
+            new CreateModuleDetail(copyId, module, isAlter, _copy.IdentifiersAreCaseSensitive),
             new Fact(ChangeKind.CreateModule, copyId.SchemaName, copyId.ParentObjectName ?? copyId.ObjectName, copyId.ObjectName, copyId.ObjectType)
             {
                 References = module.EffectiveReferences,
+                BindsTables = module.IsSchemaBound || copyId.ObjectType is DatabaseObjectType.View or DatabaseObjectType.TableValuedFunction,
             });
         _objectCreates[Key(copyId)] = index;
 
@@ -1135,7 +1141,7 @@ public sealed class SchemaSynchronizationPlanner
 
         var warnings = WriteModulesReferencing(id)
             .Select(other => $"{other.Id.DisplayName} references it" + (other.Module.IsSchemaBound ? " and is schema-bound, so the drop fails unless it is dropped first." : " and will stop working."))
-            .Concat(TablesUsingWarnings(id))
+            .Concat(TablesUsingWarnings(id, "drop"))
             .ToArray();
         var index = Add(
             id, SynchronizationOperationType.DropObject, OperationRisk.Critical, true, $"Drop {Describe(id.ObjectType)} {id.DisplayName}", warnings,
@@ -1143,6 +1149,7 @@ public sealed class SchemaSynchronizationPlanner
             new Fact(ChangeKind.DropModule, id.SchemaName, id.ParentObjectName ?? id.ObjectName, id.ObjectName, id.ObjectType)
             {
                 References = module.EffectiveReferences,
+                BindsTables = module.IsSchemaBound,
             });
         _objectDrops[Key(id)] = index;
     }
@@ -1159,12 +1166,12 @@ public sealed class SchemaSynchronizationPlanner
     /// Warnings for write-side tables whose computed columns, checks or defaults use <paramref name="target"/>. The plan
     /// drops it after any of those it drops itself (see the dependency rules); the warning covers the ones it keeps.
     /// </summary>
-    private IEnumerable<string> TablesUsingWarnings(DatabaseObjectId target) =>
+    private IEnumerable<string> TablesUsingWarnings(DatabaseObjectId target, string action) =>
         WriteSchema.Schemas
             .SelectMany(schema => schema.Tables)
             .Where(table => !TableBeingDropped(table.Id)
                 && table.EffectiveExpressionReferences.Any(reference => _names.Equals(reference.SchemaName, target.SchemaName) && _names.Equals(reference.ObjectName, target.ObjectName)))
-            .Select(table => $"{table.Id.DisplayName} uses it in a computed column, check or default; the drop fails unless that use is removed first.");
+            .Select(table => $"{table.Id.DisplayName} uses it in a computed column, check or default; the {action} fails unless that use is removed first.");
 
     private IEnumerable<(DatabaseObjectId Id, ModuleDefinition Module)> ModulesReferencing(DatabaseObjectId table) => WriteModulesReferencing(table);
 
@@ -1191,7 +1198,7 @@ public sealed class SchemaSynchronizationPlanner
             var writeId = IdOf(_writeObjects[Key(id)]);
             _objectDrops[Key(id)] = Add(
                 writeId, SynchronizationOperationType.DropObject, OperationRisk.Critical, true, $"Drop sequence {writeId.DisplayName}",
-                ["Defaults and code that use the sequence stop working.", .. TablesUsingWarnings(writeId)], RankDropSequence, new DropSequenceDetail(writeId),
+                ["Defaults and code that use the sequence stop working.", .. TablesUsingWarnings(writeId, "drop")], RankDropSequence, new DropSequenceDetail(writeId),
                 new Fact(ChangeKind.DropSequence, writeId.SchemaName, writeId.ObjectName, writeId.ObjectName, DatabaseObjectType.Sequence));
             return;
         }
@@ -1293,23 +1300,41 @@ public sealed class SchemaSynchronizationPlanner
                 var self = new ObjectKey(fact.Schema, fact.Name);
                 dependencies = dependencies.Concat(Where(other =>
                     (other is { Kind: ChangeKind.DropForeignKey, Referenced: { } target } && _keys.Equals(target, self))
-                    || (other.Kind is ChangeKind.DropModule or ChangeKind.DropTable or ChangeKind.DropChild or ChangeKind.DropColumn
-                    && other.References.Any(reference => Is(fact, new ObjectKey(reference.SchemaName, reference.ObjectName))))));
+                    || (other.Kind is ChangeKind.DropTable or ChangeKind.DropChild or ChangeKind.DropColumn
+                        && other.References.Any(reference => Is(fact, new ObjectKey(reference.SchemaName, reference.ObjectName))))
+                    // A table can be dropped while a module that only reads it still exists, unless it is schema-bound.
+                    || (other.Kind == ChangeKind.DropModule
+                        && (fact.Kind != ChangeKind.DropTable || other.BindsTables)
+                        && other.References.Any(reference => Is(fact, new ObjectKey(reference.SchemaName, reference.ObjectName))))));
+            }
+
+            // SQL Server refuses to alter a function while a check, default or computed column uses it (error 3729), so an
+            // alter waits for the drops of those uses that the plan makes; their recreates then wait for the alter.
+            if (fact.Kind == ChangeKind.CreateModule)
+            {
+                var self = new ObjectKey(fact.Schema, fact.Name);
+                dependencies = dependencies.Concat(Where(other =>
+                    other.Kind is ChangeKind.DropChild or ChangeKind.DropColumn
+                    && other.References.Any(reference => _keys.Equals(new ObjectKey(reference.SchemaName, reference.ObjectName), self))));
             }
 
             // Modules wait for what they reference; tables, columns and constraints for the functions and sequences their
-            // computed columns, checks and defaults use.
+            // computed columns, checks and defaults use. A module waits for tables only when SQL Server checks them as it
+            // creates the module; others resolve tables when they run, and waiting would make a false cycle with a table
+            // whose check calls a function that reads that table.
             if (fact.Kind is ChangeKind.CreateModule or ChangeKind.CreateTable or ChangeKind.AddColumn or ChangeKind.CreateChild)
             {
+                var waitsForTables = fact.Kind != ChangeKind.CreateModule || fact.BindsTables;
                 foreach (var reference in fact.References)
                 {
                     var key = new ObjectKey(reference.SchemaName, reference.ObjectName);
                     dependencies = dependencies.Concat(Where(other =>
-                        (other.Kind is ChangeKind.CreateTable or ChangeKind.CreateModule or ChangeKind.CreateSequence
+                        (other.Kind is ChangeKind.CreateModule or ChangeKind.CreateSequence or ChangeKind.CreateTable
+                            && (waitsForTables || other.Kind != ChangeKind.CreateTable)
                             && Is(other, key)
                             && other.ObjectType != DatabaseObjectType.Trigger
                             && !(fact.ObjectType == DatabaseObjectType.StoredProcedure && other.ObjectType == DatabaseObjectType.StoredProcedure))
-                        || (other.Kind is ChangeKind.AddColumn or ChangeKind.AlterColumn && OnTable(other, key.Schema, key.Name))));
+                        || (waitsForTables && other.Kind is ChangeKind.AddColumn or ChangeKind.AlterColumn && OnTable(other, key.Schema, key.Name))));
                 }
             }
 
@@ -1489,6 +1514,13 @@ public sealed class SchemaSynchronizationPlanner
         public ObjectKey? Referenced { get; init; }
 
         public IReadOnlyList<ModuleReference> References { get; init; } = [];
+
+        /// <summary>
+        /// For a module: whether SQL Server checks the tables it references at this step, so it must wait for them to be
+        /// created (views, table-valued functions and schema-bound modules) or must be dropped before them
+        /// (schema-bound modules only). Procedures, triggers and other scalar functions resolve tables when they run.
+        /// </summary>
+        public bool BindsTables { get; init; }
     }
 
     private readonly record struct ObjectKey(string Schema, string Name);

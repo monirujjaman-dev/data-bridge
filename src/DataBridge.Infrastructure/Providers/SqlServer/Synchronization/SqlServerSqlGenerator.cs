@@ -22,6 +22,10 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
     private const char LineSeparator = (char)0x2028;
     private const char ParagraphSeparator = (char)0x2029;
 
+    /// <summary>The session options SQL Server requires for computed columns, filtered indexes and indexed views.</summary>
+    private const string StandardOptions =
+        "SET ANSI_NULLS, ANSI_PADDING, ANSI_WARNINGS, ARITHABORT, CONCAT_NULL_YIELDS_NULL, QUOTED_IDENTIFIER ON;\nSET NUMERIC_ROUNDABORT OFF;";
+
     /// <summary>Every sequence an editor may treat as a line break (CR LF first, so it counts once).</summary>
     private static readonly string[] _lineBreaks =
         ["\r\n", "\r", "\n", ((char)0x0B).ToString(), ((char)0x0C).ToString(), ((char)0x85).ToString(), LineSeparator.ToString(), ParagraphSeparator.ToString()];
@@ -76,24 +80,18 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
         Comment(script, "It stops unless the database name, server name and database GUID match. A failover to another server stops it;");
         Comment(script, "a restore over the same database keeps the GUID (unless restored WITH NEW_BROKER) and does not.");
         Comment(script, "A stopped script leaves SET NOEXEC ON in the session; run SET NOEXEC OFF before using it for anything else.");
+        Comment(script, "Each step's SQL is shown as a comment and run as EXEC over its exact text in hex, so that SSMS and sqlcmd,");
+        Comment(script, "which read GO lines, sqlcmd commands and $( variables before SQL Server sees the text, cannot split or change it.");
         script.AppendLine();
-        var hazardous = plan.Operations
-            .Where(operation => !operation.IsDataOperation && operation.SqlBatches.Any(batch => ScriptHazard(batch) is not null))
-            .Select(operation => operation.Id)
-            .ToHashSet();
-        if (hazardous.Count > 0)
-        {
-            // A batch the tool would split or interpret is shown commented out, so the script as a whole must not run.
-            script.AppendLine("RAISERROR(N'This script contains definitions that cannot be shown as runnable SQL; they are commented out below. Do not run it.', 16, 1);");
-            script.AppendLine("SET NOEXEC ON;");
-            script.AppendLine("GO");
-        }
 
         // The database name, the server and (when known) the database GUID must all match the planned write target. The
         // names come from the server and can contain anything, including line breaks and "$(", which SSMS and sqlcmd
         // would act on, so they are written as hex that those tools cannot read into. The test is written as "not all of
         // these hold", so a NULL anywhere refuses rather than passes. The server name is upper-cased under one fixed
         // collation on both sides, so the current database's collation (Turkish, for example) cannot map them differently.
+        // sqlcmd starts with QUOTED_IDENTIFIER OFF; SQL Server needs these options for computed columns, filtered indexes
+        // and indexed views, whatever tool runs the script.
+        script.AppendLine(StandardOptions);
         script.AppendLine(CultureInfo.InvariantCulture, $"DECLARE @Database nvarchar(128) = {HexText(plan.WriteTargetDatabaseName, 128)},");
         script.AppendLine(CultureInfo.InvariantCulture, $"    @Server nvarchar(256) = {HexText(plan.WriteTargetServerName, 256)};");
         script.AppendLine("IF NOT (DB_NAME() COLLATE Latin1_General_100_BIN2 = @Database COLLATE Latin1_General_100_BIN2");
@@ -131,21 +129,16 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
                 continue;
             }
 
-            if (hazardous.Contains(operation.Id))
-            {
-                var reason = operation.SqlBatches.Select(ScriptHazard).First(hazard => hazard is not null);
-                Comment(script, $"   Not runnable from this script: {reason}. Its SQL, for review only:");
-                foreach (var batch in operation.SqlBatches)
-                {
-                    Comment(script, "   " + batch);
-                }
-
-                continue;
-            }
-
             foreach (var batch in operation.SqlBatches)
             {
-                script.AppendLine(batch);
+                AppendBatch(script, batch);
+            }
+
+            // A module sets its own stored ANSI_NULLS and QUOTED_IDENTIFIER for its definition; put the standard ones back
+            // so the steps after it do not run under them.
+            if (operation.SqlBatches.Any(batch => SessionOptionsBatch().IsMatch(batch)))
+            {
+                script.AppendLine(StandardOptions);
                 script.AppendLine("GO");
             }
         }
@@ -160,7 +153,55 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
             }
         }
 
-        return script.ToString();
+        var text = script.ToString();
+        EnsureOnlyGeneratedTextRuns(text);
+        return text;
+    }
+
+    /// <summary>
+    /// Writes one batch so that no text from a database is on a runnable line: a readable copy as a comment, then
+    /// <c>EXEC</c> over the exact text in hex. The one exception is the session-option batch a module needs, which is
+    /// generated text only and must run at session level (a <c>SET</c> inside <c>EXEC</c> ends with it). Inside
+    /// <c>EXEC</c> the text is parsed by SQL Server alone, with the session's options, as it is when DataBridge runs it.
+    /// </summary>
+    private static void AppendBatch(StringBuilder script, string batch)
+    {
+        if (SessionOptionsBatch().IsMatch(batch))
+        {
+            script.AppendLine(batch);
+        }
+        else
+        {
+            Comment(script, "   Runs:");
+            Comment(script, batch);
+            // EXEC takes only a variable or literal, so the text goes through a variable.
+            script.AppendLine(CultureInfo.InvariantCulture, $"DECLARE @Batch nvarchar(max) = {HexText(batch)};");
+            script.AppendLine("EXEC (@Batch);");
+        }
+
+        script.AppendLine("GO");
+    }
+
+    /// <summary>
+    /// Checks the finished script: every line that is not a comment or one of the generator's <c>GO</c> lines must be
+    /// free of anything SSMS or sqlcmd would act on. Database text only ever reaches the script as hex or inside
+    /// comments, so a failure here is a generator bug, and the script is refused rather than returned.
+    /// </summary>
+    private static void EnsureOnlyGeneratedTextRuns(string script)
+    {
+        foreach (var line in script.Split(_lineBreaks, StringSplitOptions.None))
+        {
+            var trimmed = line.TrimStart();
+            if (trimmed.StartsWith("--", StringComparison.Ordinal) || string.Equals(line, "GO", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (ScriptHazard(line) is { } hazard)
+            {
+                throw new InvalidOperationException($"The generated script has a runnable line that is unsafe ({hazard}).");
+            }
+        }
     }
 
     // Tables and columns
@@ -373,7 +414,7 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
     private static IReadOnlyList<string> Module(CreateModuleDetail detail)
     {
         var text = detail.Module.Text ?? throw new UnsupportedChangeException("The definition is not visible.");
-        var qualified = QualifyHeader(text, detail.Id);
+        var qualified = QualifyHeader(text, detail.Id, detail.NamesAreCaseSensitive);
         var statement = detail.IsAlter ? CreateOrAlter(qualified) : qualified.Trim();
         return
         [
@@ -386,10 +427,14 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
     /// Makes sure a stored definition creates the object the plan names: its header must name <paramref name="id"/>
     /// (and, for a trigger, its table). A name without a schema is qualified, because it would otherwise resolve to the
     /// executing login's default schema; any other name, for example the old name of a module renamed with
-    /// <c>sp_rename</c>, is refused.
+    /// <c>sp_rename</c>, is refused. Names are matched the way the database the definition came from matches them
+    /// (<paramref name="caseSensitive"/>): there, a header differing only in case names the same object (for example
+    /// after <c>ALTER PROCEDURE dbo.MYPROC</c> on <c>MyProc</c>) unless the database is case-sensitive, where it may name
+    /// a different one.
     /// </summary>
-    internal static string QualifyHeader(string definition, DatabaseObjectId id)
+    internal static string QualifyHeader(string definition, DatabaseObjectId id, bool caseSensitive)
     {
+        var comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         var position = SkipTrivia(definition, 0);
         if (!IsKeyword(definition, position, "CREATE"))
         {
@@ -420,7 +465,7 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
             ?? throw new UnsupportedChangeException($"The definition does not create a {keywords[0].ToLowerInvariant()}.");
         position = SkipTrivia(definition, position + keyword.Length);
 
-        var result = Qualify(definition, ref position, id.SchemaName, id.ObjectName, "object", StringComparison.Ordinal);
+        var result = Qualify(definition, ref position, id.SchemaName, id.ObjectName, "object", comparison);
         if (id.ObjectType == DatabaseObjectType.Trigger)
         {
             var offset = result.Length - definition.Length;
@@ -431,20 +476,17 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
             }
 
             position = SkipTrivia(result, position + "ON".Length);
-            result = Qualify(result, ref position, id.SchemaName, id.ParentObjectName!, "table", StringComparison.OrdinalIgnoreCase);
+            result = Qualify(result, ref position, id.SchemaName, id.ParentObjectName!, "table", comparison);
         }
 
         return result;
     }
 
     /// <summary>
-    /// Reads the one- or two-part name at <paramref name="position"/>, checks it and qualifies it if needed. The schema
-    /// is compared ignoring case, since a header may spell an existing schema differently. The object's own name is
-    /// compared exactly: the engine stores it as the header spelled it, so a header differing even in case names
-    /// something else, for example before a rename to a case variant in a case-sensitive database. A trigger's table
-    /// is compared ignoring case, since the header may spell an existing table differently.
+    /// Reads the one- or two-part name at <paramref name="position"/>, checks both parts with
+    /// <paramref name="comparison"/> and qualifies a one-part name.
     /// </summary>
-    private static string Qualify(string text, ref int position, string schema, string name, string what, StringComparison nameComparison)
+    private static string Qualify(string text, ref int position, string schema, string name, string what, StringComparison comparison)
     {
         var start = position;
         var parts = new List<string>();
@@ -461,10 +503,10 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
             break;
         }
 
-        var sameName = string.Equals(parts[^1], name, nameComparison);
+        var sameName = string.Equals(parts[^1], name, comparison);
         switch (parts.Count)
         {
-            case 2 when sameName && string.Equals(parts[0], schema, StringComparison.OrdinalIgnoreCase):
+            case 2 when sameName && string.Equals(parts[0], schema, comparison):
                 return text;
             case 1 when sameName:
                 return string.Concat(text.AsSpan(0, start), Quote(schema), ".", text.AsSpan(start));
@@ -683,7 +725,7 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
     /// The units are written exactly, without an encoder, because an encoder replaces an unpaired surrogate (which a
     /// SQL Server name can contain) with U+FFFD and so would name a different database.
     /// </summary>
-    internal static string HexText(string value, int length)
+    internal static string HexText(string value, int? length = null)
     {
         var hex = new StringBuilder(value.Length * 4);
         foreach (var unit in value)
@@ -691,7 +733,7 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
             hex.Append(CultureInfo.InvariantCulture, $"{unit & 0xFF:X2}{unit >> 8:X2}");
         }
 
-        return $"CAST(0x{hex} AS nvarchar({Number(length)}))";
+        return $"CAST(0x{hex} AS nvarchar({(length is { } fixedLength ? Number(fixedLength) : "max")}))";
     }
 
     private static string OnOff(bool value) => value ? "ON" : "OFF";
@@ -717,13 +759,12 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
     }
 
     /// <summary>
-    /// Why a batch cannot be written to a script as runnable SQL, or <see langword="null"/>. SSMS and sqlcmd read a
+    /// Why text would be unsafe on a runnable line of a script, or <see langword="null"/>. SSMS and sqlcmd read a
     /// script line by line before SQL Server sees it, inside brackets, strings and comments too: a line starting with
     /// <c>GO</c> ends the batch, and in SQLCMD mode lines starting with <c>:</c>, <c>!!</c>, <c>exit</c>, <c>quit</c>,
-    /// <c>reset</c> or <c>ed</c> are commands and <c>$(</c> is a variable. Text copied from a database could use any of
-    /// them to run statements the plan does not contain, so they are refused, broadly (a false match only means the
-    /// operation is shown commented out). Every Unicode line break counts, because editors split lines on them.
-    /// DataBridge itself sends each batch separately, so this applies only to the exported script.
+    /// <c>reset</c> or <c>ed</c> are commands and <c>$(</c> is a variable. The check is broad on purpose, and every
+    /// Unicode line break counts, because editors split lines on them. <see cref="BuildScript"/> runs it over every
+    /// runnable line it writes; since database text only reaches those lines as hex, it should never match.
     /// </summary>
     internal static string? ScriptHazard(string batch)
     {
@@ -757,6 +798,10 @@ internal sealed partial class SqlServerSqlGenerator : ISqlGenerator
 
     [GeneratedRegex("^[a-z][a-z0-9_]*$", RegexOptions.CultureInvariant)]
     private static partial Regex SystemTypeName();
+
+    /// <summary>Exactly the batch <see cref="Module"/> writes before a definition, which has no database text in it.</summary>
+    [GeneratedRegex("^SET ANSI_NULLS (?:ON|OFF);\nSET QUOTED_IDENTIFIER (?:ON|OFF);$", RegexOptions.CultureInvariant)]
+    private static partial Regex SessionOptionsBatch();
 
     [GeneratedRegex("^[A-Za-z0-9_]+$", RegexOptions.CultureInvariant)]
     private static partial Regex PlainWord();

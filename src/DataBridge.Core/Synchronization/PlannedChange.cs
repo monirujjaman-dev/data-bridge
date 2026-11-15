@@ -42,8 +42,12 @@ public sealed record CreateIndexDetail(DatabaseObjectId Parent, IndexDefinition 
 
 public sealed record DropIndexDetail(DatabaseObjectId Parent, string Name) : SchemaChangeDetail;
 
-/// <summary>Creates a view, procedure, function or trigger from its definition, or alters it in place (<see cref="IsAlter"/>).</summary>
-public sealed record CreateModuleDetail(DatabaseObjectId Id, ModuleDefinition Module, bool IsAlter) : SchemaChangeDetail;
+/// <summary>
+/// Creates a view, procedure, function or trigger from its definition, or alters it in place (<see cref="IsAlter"/>).
+/// <see cref="NamesAreCaseSensitive"/> is whether the database the definition was read from compares names
+/// case-sensitively, which decides how the names in its header are matched against <see cref="Id"/>.
+/// </summary>
+public sealed record CreateModuleDetail(DatabaseObjectId Id, ModuleDefinition Module, bool IsAlter, bool NamesAreCaseSensitive = false) : SchemaChangeDetail;
 
 public sealed record DropModuleDetail(DatabaseObjectId Id) : SchemaChangeDetail;
 

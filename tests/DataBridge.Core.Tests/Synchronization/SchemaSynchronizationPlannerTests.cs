@@ -283,6 +283,80 @@ public sealed class SchemaSynchronizationPlannerTests
         Assert.True(dropTable.Order < dropFunction.Order);
     }
 
+    private static (ProgrammableObjectDefinition Function, TableDefinition Table) CheckThatReadsItsTable(bool schemaBound)
+    {
+        var function = new ProgrammableObjectDefinition(
+            new DatabaseObjectId("dbo", "BookingsFor", DatabaseObjectType.ScalarFunction),
+            new ModuleDefinition("CREATE FUNCTION dbo.BookingsFor(@r int) RETURNS int AS BEGIN RETURN (SELECT COUNT(*) FROM dbo.Bookings) END", false, schemaBound, true, true)
+            {
+                References = [new ModuleReference("dbo", "Bookings")],
+            });
+        var table = Table("Bookings", Column("Id"), Column("RoomId")) with
+        {
+            CheckConstraints = [new CheckConstraintDefinition("CK_Bookings", false, "([dbo].[BookingsFor]([RoomId])<=(1))", false, false)],
+            ExpressionReferences = [new ModuleReference("dbo", "BookingsFor")],
+        };
+        return (function, table);
+    }
+
+    [Fact]
+    public void A_table_whose_check_calls_a_function_that_reads_it_is_created_after_the_function_without_a_cycle()
+    {
+        var (function, table) = CheckThatReadsItsTable(schemaBound: false);
+        var source = Database(InSchema("dbo", table, function));
+        var target = Database(InSchema("dbo"));
+
+        var (plan, _) = PlanSchema(source, target, [table.Id, function.Id]);
+
+        Assert.Empty(plan.NotIncluded);
+        Assert.True(Position(plan, "Create function") < Position(plan, "Create table"));
+    }
+
+    [Fact]
+    public void Dropping_a_table_and_a_function_that_only_reads_it_has_no_cycle()
+    {
+        var (function, table) = CheckThatReadsItsTable(schemaBound: false);
+        var source = Database(InSchema("dbo"));
+        var target = Database(InSchema("dbo", table, function));
+
+        var (plan, _) = PlanSchema(source, target, [table.Id, function.Id], allowDestructive: true);
+
+        Assert.Empty(plan.NotIncluded);
+        Assert.Equal(2, plan.Operations.Count);
+        Assert.True(Position(plan, "Drop table") < Position(plan, "Drop function"));
+    }
+
+    [Fact]
+    public void A_schema_bound_function_and_a_table_whose_check_calls_it_are_a_real_cycle()
+    {
+        var (function, table) = CheckThatReadsItsTable(schemaBound: true);
+        var source = Database(InSchema("dbo", table, function));
+        var target = Database(InSchema("dbo"));
+
+        var (plan, _) = PlanSchema(source, target, [table.Id, function.Id]);
+
+        Assert.Empty(plan.Operations);
+        Assert.Contains(plan.NotIncluded, issue => issue.Message.Contains("cycle", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Altering_a_function_waits_for_the_drop_of_a_check_that_uses_it_and_warns_about_uses_the_plan_keeps()
+    {
+        var (function, table) = CheckThatReadsItsTable(schemaBound: false);
+        var changed = function with { Module = function.Module with { Text = function.Module.Text!.Replace("COUNT(*)", "COUNT(*) + 0", StringComparison.Ordinal) } };
+        var changedCheck = table with { CheckConstraints = [table.CheckConstraints[0] with { Expression = "([dbo].[BookingsFor]([RoomId])<=(2))" }] };
+
+        var (recreated, _) = PlanSchema(Database(InSchema("dbo", changedCheck, changed)), Database(InSchema("dbo", table, function)), [table.Id, function.Id]);
+        Assert.Empty(recreated.NotIncluded);
+        var drop = Position(recreated, "Drop check constraint");
+        var alter = Position(recreated, "Alter function");
+        Assert.True(drop < alter && alter < Position(recreated, "Recreate check constraint"));
+
+        var (kept, _) = PlanSchema(Database(InSchema("dbo", table, changed)), Database(InSchema("dbo", table, function)), [function.Id]);
+        var alterOnly = Assert.Single(kept.Operations);
+        Assert.Contains(alterOnly.Warnings, warning => warning.Contains("dbo.Bookings uses it in a computed column, check or default; the change fails", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Dropping_a_function_a_kept_table_uses_warns_that_the_drop_fails()
     {

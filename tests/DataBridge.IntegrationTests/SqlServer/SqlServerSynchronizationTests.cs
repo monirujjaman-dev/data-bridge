@@ -115,6 +115,101 @@ public sealed class SqlServerSynchronizationTests(SqlServerFixture server)
         Assert.False(after.HasDifferences, Describe(after));
     }
 
+    private const string Bookings = """
+        CREATE TABLE dbo.Bookings (Id int NOT NULL PRIMARY KEY, RoomId int NOT NULL);
+        GO
+        CREATE FUNCTION dbo.BookingsFor (@RoomId int) RETURNS int AS
+        BEGIN
+            RETURN (SELECT COUNT(*) FROM dbo.Bookings WHERE RoomId = @RoomId);
+        END;
+        GO
+        ALTER TABLE dbo.Bookings ADD CONSTRAINT CK_Bookings_Room CHECK (dbo.BookingsFor(RoomId) <= 1);
+        """;
+
+    [Fact]
+    public async Task A_table_whose_check_calls_a_function_that_reads_it_is_created_and_dropped_without_a_cycle()
+    {
+        server.RequireServer();
+        var source = await CreateDatabaseAsync(Bookings);
+        var target = await CreateDatabaseAsync("");
+
+        var (create, _) = await PlanAsync(source, target, allowDestructive: false);
+        Assert.True(create.NotIncluded.Count == 0, Issues(create));
+        await ApplyAsync(target, create);
+        var created = await CompareAsync(source, target);
+        Assert.False(created.HasDifferences, Describe(created));
+
+        var empty = await CreateDatabaseAsync("");
+        var (drop, _) = await PlanAsync(empty, target, allowDestructive: true);
+        Assert.True(drop.NotIncluded.Count == 0, Issues(drop));
+        Assert.Equal(2, drop.Operations.Count);
+        await ApplyAsync(target, drop);
+        var dropped = await CompareAsync(empty, target);
+        Assert.False(dropped.HasDifferences, Describe(dropped));
+    }
+
+    [Fact]
+    public async Task Altering_a_function_a_recreated_check_uses_runs_between_the_drop_and_the_recreate()
+    {
+        server.RequireServer();
+        var source = await CreateDatabaseAsync(Bookings.Replace("SELECT COUNT(*)", "SELECT COUNT(*) + 0", StringComparison.Ordinal).Replace("<= 1", "<= 2", StringComparison.Ordinal));
+        var target = await CreateDatabaseAsync(Bookings);
+
+        var (plan, _) = await PlanAsync(source, target, allowDestructive: false);
+        Assert.True(plan.NotIncluded.Count == 0, Issues(plan));
+        var drop = Position(plan, "Drop check constraint");
+        var alter = Position(plan, "Alter function");
+        var recreate = Position(plan, "Recreate check constraint");
+        Assert.True(drop < alter && alter < recreate, $"drop {drop}, alter {alter}, recreate {recreate}");
+        await ApplyAsync(target, plan);
+
+        var after = await CompareAsync(source, target);
+        Assert.False(after.HasDifferences, Describe(after));
+    }
+
+    [Fact]
+    public async Task Altering_a_function_a_kept_check_uses_warns_that_sql_server_refuses_it()
+    {
+        server.RequireServer();
+        var source = await CreateDatabaseAsync(Bookings.Replace("SELECT COUNT(*)", "SELECT COUNT(*) + 0", StringComparison.Ordinal));
+        var target = await CreateDatabaseAsync(Bookings);
+
+        var (plan, _) = await PlanAsync(source, target, allowDestructive: false);
+        var alter = Assert.Single(plan.Operations);
+        Assert.Contains(alter.Warnings, warning => warning.Contains("dbo.Bookings uses it in a computed column, check or default; the change fails", StringComparison.Ordinal));
+
+        // The warning is accurate: SQL Server refuses the alter while CK_Bookings_Room uses the function.
+        var failure = await Assert.ThrowsAsync<SqlException>(async () =>
+        {
+            foreach (var batch in alter.SqlBatches)
+            {
+                await server.ExecuteOneBatchAsync(batch, Token, target);
+            }
+        });
+        Assert.Equal(3729, failure.Number);
+    }
+
+    [Fact]
+    public async Task A_module_altered_with_a_different_case_header_is_created_in_a_case_insensitive_database()
+    {
+        server.RequireServer();
+        var source = await CreateDatabaseAsync("""
+            CREATE PROCEDURE dbo.MyProc AS SELECT 1 AS One;
+            GO
+            ALTER PROCEDURE DBO.MYPROC AS SELECT 2 AS Two;
+            """);
+        var target = await CreateDatabaseAsync("");
+
+        var (plan, _) = await PlanAsync(source, target, allowDestructive: false);
+        Assert.True(plan.NotIncluded.Count == 0, Issues(plan));
+        await ApplyAsync(target, plan);
+
+        // SQL Server names the new procedure as its stored header spells it; in a case-insensitive database that is the same name.
+        Assert.Equal("MYPROC", await server.QueryRowAsync(target, "SELECT name FROM sys.procedures", Token));
+        var after = await CompareAsync(source, target);
+        Assert.False(after.HasDifferences, Describe(after));
+    }
+
     [Fact]
     public async Task A_generated_plan_alters_and_drops_until_the_schemas_match()
     {
@@ -233,7 +328,7 @@ public sealed class SqlServerSynchronizationTests(SqlServerFixture server)
     }
 
     [Fact]
-    public async Task The_exported_script_runs_only_in_its_write_target_and_not_at_all_with_a_hazardous_operation()
+    public async Task The_exported_script_runs_only_in_its_write_target_and_runs_text_tools_act_on_unchanged()
     {
         server.RequireServer();
         var target = $"DataBridgeTest_{Guid.NewGuid():N}_O'Brien_Ünï";
@@ -242,17 +337,16 @@ public sealed class SqlServerSynchronizationTests(SqlServerFixture server)
         {
             var other = await CreateDatabaseAsync("");
             var identity = await IdentityAsync(target);
-            var safe = ScriptFor(identity, "CREATE TABLE dbo.Probe (Id int);");
-            var hazardous = ScriptFor(identity, "CREATE TABLE dbo.Probe (Id int);", "CREATE TABLE dbo.Other (Id int CONSTRAINT DF_Other DEFAULT (0x0A) /*\nGO\n*/);");
+            var script = ScriptFor(identity, "CREATE TABLE dbo.Probe (Id int);", "CREATE TABLE dbo.Other (Id int CONSTRAINT DF_Other DEFAULT (0x0A) /*\nGO\n*/);");
 
-            Assert.Contains(await RunLikeSsmsAsync(other, safe), message => message.Contains("This script must run in database", StringComparison.Ordinal));
+            Assert.Contains(await RunLikeSsmsAsync(other, script), message => message.Contains("This script must run in database", StringComparison.Ordinal));
             Assert.Equal(0, await TableCountAsync(other));
 
-            Assert.Contains(await RunLikeSsmsAsync(target, hazardous), message => message.Contains("cannot be shown as runnable SQL", StringComparison.Ordinal));
-            Assert.Equal(0, await TableCountAsync(target));
-
-            Assert.Empty(await RunLikeSsmsAsync(target, safe));
-            Assert.Equal(1, await TableCountAsync(target, "Probe"));
+            // The GO line inside the default's comment reaches SQL Server as written, so the statement is not split and
+            // the table is created whole (SQL Server drops the comment from the stored default).
+            Assert.Empty(await RunLikeSsmsAsync(target, script));
+            Assert.Equal(2, await TableCountAsync(target));
+            Assert.Equal("(0x0A)", await server.QueryRowAsync(target, "SELECT definition FROM sys.default_constraints WHERE name = N'DF_Other'", Token));
         }
         finally
         {
@@ -327,33 +421,106 @@ public sealed class SqlServerSynchronizationTests(SqlServerFixture server)
     }
 
     [Fact]
-    public async Task Sqlcmd_runs_the_exported_script_only_in_its_write_target_and_not_at_all_with_a_hazardous_operation()
+    public async Task Sqlcmd_runs_the_exported_script_only_in_its_write_target_and_runs_text_it_acts_on_unchanged()
     {
         server.RequireServer();
         var target = await CreateDatabaseAsync("");
         var other = await CreateDatabaseAsync("");
         var identity = await IdentityAsync(target);
-        var safe = ScriptFor(identity, "CREATE TABLE dbo.Probe (Id int);");
-        var hazardous = ScriptFor(
+        var script = ScriptFor(
             identity,
             "CREATE TABLE dbo.Probe (Id int);",
-            "CREATE TABLE dbo.Other (Id int CONSTRAINT DF_Other DEFAULT (0x0A) /*\nGO 2\n:connect elsewhere\n$(Secret)\n*/);");
+            "CREATE TABLE dbo.Other (Id int CONSTRAINT DF_Other DEFAULT (0x0A) /*\nGO 2\n:connect elsewhere\n!! echo injected\n$(Secret)\n*/);");
 
-        var plain = await server.RunSqlcmdAsync(other, safe, abortOnError: false, Token);
+        var plain = await server.RunSqlcmdAsync(other, script, abortOnError: false, Token);
         Assert.Contains("This script must run in database", plain.Output, StringComparison.Ordinal);
-        var aborted = await server.RunSqlcmdAsync(other, safe, abortOnError: true, Token);
+        var aborted = await server.RunSqlcmdAsync(other, script, abortOnError: true, Token);
         Assert.NotEqual(0, aborted.ExitCode);
         Assert.Equal(0, await TableCountAsync(other));
 
-        var stopped = await server.RunSqlcmdAsync(target, hazardous, abortOnError: false, Token);
-        Assert.Contains("cannot be shown as runnable SQL", stopped.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("scripting variable", stopped.Output, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(0, await TableCountAsync(target));
-
-        var ran = await server.RunSqlcmdAsync(target, safe, abortOnError: true, Token);
+        var ran = await server.RunSqlcmdAsync(target, script, abortOnError: true, Token);
         Assert.True(ran.ExitCode == 0, ran.Output);
+        Assert.DoesNotContain("scripting variable", ran.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("injected", ran.Output, StringComparison.Ordinal);
+        Assert.Equal(2, await TableCountAsync(target));
+        Assert.Equal("(0x0A)", await server.QueryRowAsync(target, "SELECT definition FROM sys.default_constraints WHERE name = N'DF_Other'", Token));
+    }
+
+    [Fact]
+    public async Task The_exported_script_builds_every_supported_object_in_an_empty_database_with_ssms_and_sqlcmd()
+    {
+        server.RequireServer();
+        var source = await CreateDatabaseAsync(Baseline);
+        var bySsms = await CreateDatabaseAsync("");
+        var bySqlcmd = await CreateDatabaseAsync("");
+
+        foreach (var target in new[] { bySsms, bySqlcmd })
+        {
+            var (planned, _) = await PlanAsync(source, target, allowDestructive: false);
+            var script = _generator.BuildScript(SynchronizationPlan.Create(
+                Guid.NewGuid(), Guid.NewGuid(), SynchronizationDirection.SourceToTarget, Guid.NewGuid(), await IdentityAsync(target), EnvironmentLabel.None,
+                "schema", SynchronizationPlanOptions.Default, planned.Operations, [], DateTimeOffset.UtcNow));
+
+            if (target == bySsms)
+            {
+                Assert.Empty(await RunLikeSsmsAsync(target, script));
+            }
+            else
+            {
+                var run = await server.RunSqlcmdAsync(target, script, abortOnError: true, Token);
+                Assert.True(run.ExitCode == 0, run.Output);
+            }
+
+            var after = await CompareAsync(source, target);
+            Assert.False(after.HasDifferences, Describe(after));
+        }
+    }
+
+    [Fact]
+    public async Task A_module_body_that_hides_go_lines_or_turns_noexec_off_cannot_get_past_the_guard()
+    {
+        server.RequireServer();
+        var source = await CreateDatabaseAsync("");
+        await server.ExecuteOneBatchAsync(
+            """
+            CREATE PROCEDURE dbo.Tricky AS
+            BEGIN
+                /* a /* nested */ comment, then a line that is only GO
+            GO
+                */
+                SET NOEXEC OFF;
+                SELECT N'it''s [not] a "GO"' AS Text;
+            END;
+            """,
+            Token,
+            source);
+        var target = await CreateDatabaseAsync("");
+        var other = await CreateDatabaseAsync("");
+        var (planned, _) = await PlanAsync(source, target, allowDestructive: false);
+        var script = _generator.BuildScript(SynchronizationPlan.Create(
+            Guid.NewGuid(), Guid.NewGuid(), SynchronizationDirection.SourceToTarget, Guid.NewGuid(), await IdentityAsync(target), EnvironmentLabel.None,
+            "schema", SynchronizationPlanOptions.Default, [.. planned.Operations, ProbeOperation(planned.Operations.Count)], [], DateTimeOffset.UtcNow));
+
+        // In the wrong database the guard stops everything, including the probe after the procedure.
+        Assert.NotEmpty(await RunLikeSsmsAsync(other, script));
+        Assert.Equal("0", await server.QueryRowAsync(other, "SELECT COUNT(*) FROM sys.objects WHERE is_ms_shipped = 0", Token));
+        await server.RunSqlcmdAsync(other, script, abortOnError: false, Token);
+        Assert.Equal("0", await server.QueryRowAsync(other, "SELECT COUNT(*) FROM sys.objects WHERE is_ms_shipped = 0", Token));
+
+        // In the write target the procedure is created exactly as defined, and the probe after it runs too.
+        var run = await server.RunSqlcmdAsync(target, script, abortOnError: true, Token);
+        Assert.True(run.ExitCode == 0, run.Output);
+        const string Definition = "SELECT OBJECT_DEFINITION(OBJECT_ID(N'dbo.Tricky'))";
+        Assert.Equal(await server.QueryRowAsync(source, Definition, Token), await server.QueryRowAsync(target, Definition, Token));
         Assert.Equal(1, await TableCountAsync(target, "Probe"));
     }
+
+    private static int Position(SynchronizationPlan plan, string descriptionStart) =>
+        plan.Operations.Single(operation => operation.Description.StartsWith(descriptionStart, StringComparison.Ordinal)).Order;
+
+    private static SynchronizationOperation ProbeOperation(int order) => new(
+        Guid.NewGuid(), order, new DatabaseObjectId("dbo", "Probe", DatabaseObjectType.Table), SynchronizationOperationType.CreateObject,
+        OperationRisk.Low, false, [], "Create probe", ["CREATE TABLE dbo.Probe (Id int);"], null, []);
 
     /// <summary>The identity of <paramref name="database"/> as the server reports it, as a plan records it.</summary>
     private async Task<ResolvedDatabaseIdentity> IdentityAsync(string database)
