@@ -139,12 +139,16 @@ internal static class SqlServerCatalogQuery
         WHERE o.is_ms_shipped = 0 AND o.type IN ('V', 'P', 'FN', 'IF', 'TF', 'TR');
 
         -- Objects each module references in this database, as resolved by the engine (for synchronization order).
-        SELECT DISTINCT d.referencing_id, SCHEMA_NAME(ro.schema_id), ro.name
-        FROM sys.sql_expression_dependencies AS d
-        JOIN sys.objects AS ro ON ro.object_id = d.referenced_id
-        WHERE d.referencing_class = 1 AND d.referenced_class = 1 AND d.referenced_id IS NOT NULL
-          AND d.referenced_server_name IS NULL AND d.referenced_database_name IS NULL
-          AND d.referenced_id <> d.referencing_id AND ro.is_ms_shipped = 0;
+        -- Reading them needs VIEW DEFINITION; without it the list is empty, which only loses ordering hints.
+        IF ISNULL(HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'VIEW DEFINITION'), 0) = 1
+            SELECT DISTINCT d.referencing_id, SCHEMA_NAME(ro.schema_id), ro.name
+            FROM sys.sql_expression_dependencies AS d
+            JOIN sys.objects AS ro ON ro.object_id = d.referenced_id
+            WHERE d.referencing_class = 1 AND d.referenced_class = 1 AND d.referenced_id IS NOT NULL
+              AND d.referenced_server_name IS NULL AND d.referenced_database_name IS NULL
+              AND d.referenced_id <> d.referencing_id AND ro.is_ms_shipped = 0;
+        ELSE
+            SELECT CAST(NULL AS int), CAST(NULL AS sysname), CAST(NULL AS sysname) WHERE 1 = 0;
 
         SELECT t.object_id, t.is_disabled, t.is_instead_of_trigger
         FROM sys.triggers AS t
