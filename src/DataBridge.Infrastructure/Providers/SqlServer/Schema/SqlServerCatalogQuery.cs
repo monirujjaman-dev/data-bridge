@@ -22,6 +22,7 @@ internal static class SqlServerCatalogQuery
         CheckConstraints,
         DefaultConstraints,
         Modules,
+        ModuleReferences,
         Triggers,
         Sequences,
         OtherUnsupported,
@@ -136,6 +137,14 @@ internal static class SqlServerCatalogQuery
         FROM sys.objects AS o
         LEFT JOIN sys.sql_modules AS m ON m.object_id = o.object_id
         WHERE o.is_ms_shipped = 0 AND o.type IN ('V', 'P', 'FN', 'IF', 'TF', 'TR');
+
+        -- Objects each module references in this database, as resolved by the engine (for synchronization order).
+        SELECT DISTINCT d.referencing_id, SCHEMA_NAME(ro.schema_id), ro.name
+        FROM sys.sql_expression_dependencies AS d
+        JOIN sys.objects AS ro ON ro.object_id = d.referenced_id
+        WHERE d.referencing_class = 1 AND d.referenced_class = 1 AND d.referenced_id IS NOT NULL
+          AND d.referenced_server_name IS NULL AND d.referenced_database_name IS NULL
+          AND d.referenced_id <> d.referencing_id AND ro.is_ms_shipped = 0;
 
         SELECT t.object_id, t.is_disabled, t.is_instead_of_trigger
         FROM sys.triggers AS t

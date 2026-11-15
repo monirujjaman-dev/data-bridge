@@ -151,7 +151,9 @@ internal sealed class SqlServerSchemaAssembler(SqlServerCatalog catalog)
             _unsupported.Add(new UnsupportedObject(SchemaOf(row), row.Name, row.TypeDescription, reason));
         }
 
-        return module;
+        return catalog.ModuleReferences.TryGetValue(row.Id, out var references)
+            ? module with { References = [.. references.OrderBy(reference => reference.SchemaName, StringComparer.Ordinal).ThenBy(reference => reference.ObjectName, StringComparer.Ordinal)] }
+            : module;
     }
 
     private SequenceDefinition Sequence(ObjectRow row, string schema)

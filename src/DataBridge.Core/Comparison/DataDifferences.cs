@@ -71,6 +71,7 @@ public sealed record ExcludedColumn(string ColumnName, string Reason);
 /// <param name="Reason">Why the outcome is not <see cref="TableDataComparisonOutcome.Compared"/>; never contains row values.</param>
 /// <param name="SourceConsistency">The isolation achieved when reading the source.</param>
 /// <param name="TargetConsistency">The isolation achieved when reading the target.</param>
+/// <param name="ValueColumns">The compared non-key columns, as named in the source; empty when the table was not compared.</param>
 public sealed record TableDataComparisonSummary(
     DatabaseObjectId TableId,
     MatchingKey? Key,
@@ -82,8 +83,11 @@ public sealed record TableDataComparisonSummary(
     IReadOnlyList<ExcludedColumn> ExcludedColumns,
     string? Reason = null,
     ReadConsistencyMode? SourceConsistency = null,
-    ReadConsistencyMode? TargetConsistency = null)
+    ReadConsistencyMode? TargetConsistency = null,
+    IReadOnlyList<string>? ValueColumns = null)
 {
+    public IReadOnlyList<string> EffectiveValueColumns => ValueColumns ?? [];
+
     public long DifferenceCount => SourceOnlyRowCount + TargetOnlyRowCount + ModifiedRowCount;
 
     public static TableDataComparisonSummary NotCompared(

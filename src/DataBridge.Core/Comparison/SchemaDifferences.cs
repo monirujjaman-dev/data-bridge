@@ -35,11 +35,15 @@ public sealed record PropertyDifference(string PropertyName, string? SourceValue
 /// <param name="Status">How the two sides relate.</param>
 /// <param name="Properties">The differing properties; empty unless <see cref="Status"/> is <see cref="DifferenceStatus.Modified"/>.</param>
 /// <param name="Reason">Why the object is <see cref="DifferenceStatus.Incompatible"/> or <see cref="DifferenceStatus.Unknown"/>.</param>
+/// <param name="TargetObjectName">
+/// For a child paired despite a different system-generated name, the target's name; otherwise <see langword="null"/>.
+/// </param>
 public sealed record SchemaObjectDifference(
     DatabaseObjectId ObjectId,
     DifferenceStatus Status,
     IReadOnlyList<PropertyDifference> Properties,
-    string? Reason = null);
+    string? Reason = null,
+    string? TargetObjectName = null);
 
 /// <summary>
 /// The result of comparing two schemas: one entry per supported object on either side, including equal ones, plus

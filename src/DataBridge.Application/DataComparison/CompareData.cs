@@ -195,7 +195,8 @@ public sealed class CompareData(
                 plan.ExcludedColumns,
                 result.Reason,
                 sourceRows.AchievedConsistency,
-                targetRows.AchievedConsistency);
+                targetRows.AchievedConsistency,
+                [.. plan.ValueColumns.Select(column => column.Source.Name)]);
         }
         catch (DataReadException exception) when (!cancellationToken.IsCancellationRequested)
         {

@@ -553,7 +553,9 @@ internal sealed class SchemaComparisonRun
         {
             var properties = new PropertyDifferenceBuilder();
             compare(sourceItem, targetItem, properties);
-            output.Add(Child(DatabaseObjectId.ForChild(parent, nameOf(sourceItem), type), properties));
+            var child = Child(DatabaseObjectId.ForChild(parent, nameOf(sourceItem), type), properties);
+            var targetName = nameOf(targetItem);
+            output.Add(string.Equals(targetName, nameOf(sourceItem), StringComparison.Ordinal) ? child : child with { TargetObjectName = targetName });
         }
 
         output.AddRange(unmatchedSource.Select(item =>
