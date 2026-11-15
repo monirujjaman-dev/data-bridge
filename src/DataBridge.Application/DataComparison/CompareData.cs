@@ -65,7 +65,11 @@ public sealed class CompareData(
 
             var summaries = await CompareTablesAsync(comparison, request, tables, sink, progress, cancellationToken);
             var report = new DataComparisonReport(
-                sessionId, comparison.SourceIdentity, comparison.TargetIdentity, summaries, startedAtUtc, timeProvider.GetUtcNow());
+                sessionId, comparison.SourceIdentity, comparison.TargetIdentity, summaries, startedAtUtc, timeProvider.GetUtcNow())
+            {
+                SourceSchema = comparison.SourceSchema,
+                TargetSchema = comparison.TargetSchema,
+            };
             LogCompleted(report);
             return Result.Success(report);
         }

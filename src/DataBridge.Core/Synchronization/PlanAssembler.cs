@@ -15,6 +15,9 @@ public sealed record PlanHeader(
     SynchronizationPlanOptions Options,
     DateTimeOffset CreatedAtUtc);
 
+/// <summary>A plan and, for each operation, the detail its SQL was generated from (used to validate the write target).</summary>
+public sealed record AssembledPlan(SynchronizationPlan Plan, IReadOnlyDictionary<Guid, SchemaChangeDetail> Details);
+
 /// <summary>
 /// Turns a <see cref="PlanDraft"/> into a <see cref="SynchronizationPlan"/>: generates each change's SQL, orders the
 /// changes by their dependencies (FR-PLN-005) and reports what cannot be included (FR-PLN-006).
@@ -30,7 +33,7 @@ public static class PlanAssembler
     /// <param name="header">Plan identity, write target and options.</param>
     /// <param name="generate">The provider's SQL for a change, or a failure explaining why it cannot be generated.</param>
     /// <param name="newId">Creates operation ids.</param>
-    public static SynchronizationPlan Assemble(
+    public static AssembledPlan Assemble(
         PlanDraft draft,
         PlanHeader header,
         Func<PlannedChange, Result<IReadOnlyList<string>>> generate,
@@ -87,6 +90,7 @@ public static class PlanAssembler
         }
 
         var ids = new Dictionary<int, Guid>();
+        var details = new Dictionary<Guid, SchemaChangeDetail>();
         var operations = new List<SynchronizationOperation>(order.Order.Count);
         foreach (var node in order.Order)
         {
@@ -94,6 +98,7 @@ public static class PlanAssembler
             var change = changes[index];
             var id = newId();
             ids[index] = id;
+            details[id] = change.Detail;
             var rows = change.Detail is RowsDetail detail ? detail.Rows : null;
             operations.Add(new SynchronizationOperation(
                 id,
@@ -110,7 +115,7 @@ public static class PlanAssembler
                 rows));
         }
 
-        return SynchronizationPlan.Create(
+        var plan = SynchronizationPlan.Create(
             header.PlanId,
             header.ComparisonSessionId,
             header.Direction,
@@ -122,6 +127,7 @@ public static class PlanAssembler
             operations,
             issues,
             header.CreatedAtUtc);
+        return new AssembledPlan(plan, details);
     }
 
     /// <summary>Excludes every change that depends, directly or indirectly, on an excluded one.</summary>

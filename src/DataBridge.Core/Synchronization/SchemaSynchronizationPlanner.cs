@@ -1060,6 +1060,14 @@ public sealed class SchemaSynchronizationPlanner
                 References = module.EffectiveReferences,
             });
         _objectCreates[Key(copyId)] = index;
+
+        if (!isAlter && copy is ViewDefinition view)
+        {
+            foreach (var viewIndex in view.Indexes)
+            {
+                CreateIndex(copyId, viewIndex, null, parentCreated: true);
+            }
+        }
     }
 
     private void DropModule(DatabaseObjectId id, ModuleDefinition module)

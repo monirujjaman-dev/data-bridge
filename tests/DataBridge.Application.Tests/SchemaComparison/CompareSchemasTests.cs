@@ -219,5 +219,9 @@ public sealed class CompareSchemasTests
         public ISchemaReader GetSchemaReader(DatabaseProviderType providerType) => reader;
 
         public IDataReaderProvider GetDataReader(DatabaseProviderType providerType) => throw new NotSupportedException();
+
+        public ISqlGenerator GetSqlGenerator(DatabaseProviderType providerType) => throw new NotSupportedException();
+
+        public ISynchronizationTargetInspector GetTargetInspector(DatabaseProviderType providerType) => throw new NotSupportedException();
     }
 }

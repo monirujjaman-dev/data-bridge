@@ -2,6 +2,7 @@ using DataBridge.Application.Abstractions;
 using DataBridge.Application.Connections;
 using DataBridge.Core.Comparison;
 using DataBridge.Core.Connections;
+using DataBridge.Core.Schema;
 using DataBridge.Shared.Errors;
 using DataBridge.Shared.Results;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,12 @@ public sealed record SchemaComparisonReport(
 {
     /// <summary>Whether both profiles resolved to the same database, which makes the comparison meaningless.</summary>
     public bool IsSameDatabase => Source.IsSameDatabaseAs(Target);
+
+    /// <summary>The source schema as read; what synchronization planning works from.</summary>
+    public DatabaseSchema? SourceSchema { get; init; }
+
+    /// <summary>The target schema as read.</summary>
+    public DatabaseSchema? TargetSchema { get; init; }
 }
 
 /// <summary>
@@ -145,7 +152,11 @@ public sealed class CompareSchemas(
             sourceSchema.HasCompleteMetadata,
             targetSchema.HasCompleteMetadata,
             startedAtUtc,
-            timeProvider.GetUtcNow()));
+            timeProvider.GetUtcNow())
+        {
+            SourceSchema = sourceSchema,
+            TargetSchema = targetSchema,
+        });
     }
 
     private static Error[] Failures(Result source, Result target) =>

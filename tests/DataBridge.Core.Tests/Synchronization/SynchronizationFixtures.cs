@@ -36,7 +36,7 @@ internal static class SynchronizationFixtures
             draft,
             new PlanHeader(Guid.NewGuid(), Guid.NewGuid(), direction, Guid.NewGuid(), Identity(), environment, "schema-hash", options, Now),
             change => Result.Success<IReadOnlyList<string>>([change.Description]),
-            Guid.NewGuid);
+            Guid.NewGuid).Plan;
 
     public static DatabaseObjectId TableId(string name, string schema = "dbo") => new(schema, name, DatabaseObjectType.Table);
 

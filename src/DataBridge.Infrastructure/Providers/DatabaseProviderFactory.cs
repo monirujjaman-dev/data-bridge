@@ -7,7 +7,9 @@ namespace DataBridge.Infrastructure.Providers;
 internal sealed class DatabaseProviderFactory(
     IEnumerable<IDatabaseProvider> providers,
     IEnumerable<ISchemaReader> schemaReaders,
-    IEnumerable<IDataReaderProvider> dataReaders) : IDatabaseProviderFactory
+    IEnumerable<IDataReaderProvider> dataReaders,
+    IEnumerable<ISqlGenerator> sqlGenerators,
+    IEnumerable<ISynchronizationTargetInspector> inspectors) : IDatabaseProviderFactory
 {
     private readonly Dictionary<DatabaseProviderType, IDatabaseProvider> _providers =
         providers.ToDictionary(provider => provider.ProviderType);
@@ -17,6 +19,12 @@ internal sealed class DatabaseProviderFactory(
 
     private readonly Dictionary<DatabaseProviderType, IDataReaderProvider> _dataReaders =
         dataReaders.ToDictionary(reader => reader.ProviderType);
+
+    private readonly Dictionary<DatabaseProviderType, ISqlGenerator> _sqlGenerators =
+        sqlGenerators.ToDictionary(generator => generator.ProviderType);
+
+    private readonly Dictionary<DatabaseProviderType, ISynchronizationTargetInspector> _inspectors =
+        inspectors.ToDictionary(inspector => inspector.ProviderType);
 
     public IDatabaseProvider GetProvider(DatabaseProviderType providerType) =>
         _providers.TryGetValue(providerType, out var provider)
@@ -32,4 +40,14 @@ internal sealed class DatabaseProviderFactory(
         _dataReaders.TryGetValue(providerType, out var reader)
             ? reader
             : throw new NotSupportedException($"No data reader is registered for {providerType}.");
+
+    public ISqlGenerator GetSqlGenerator(DatabaseProviderType providerType) =>
+        _sqlGenerators.TryGetValue(providerType, out var generator)
+            ? generator
+            : throw new NotSupportedException($"No SQL generator is registered for {providerType}.");
+
+    public ISynchronizationTargetInspector GetTargetInspector(DatabaseProviderType providerType) =>
+        _inspectors.TryGetValue(providerType, out var inspector)
+            ? inspector
+            : throw new NotSupportedException($"No target inspector is registered for {providerType}.");
 }

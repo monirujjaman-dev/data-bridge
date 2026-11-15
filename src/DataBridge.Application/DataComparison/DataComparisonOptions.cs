@@ -77,6 +77,12 @@ public sealed record DataComparisonReport(
     /// <summary>Whether any table was read without a snapshot, so results may mix states of concurrently changing data.</summary>
     public bool HasNonSnapshotReads => Tables.Any(table =>
         table.SourceConsistency == ReadConsistencyMode.ReadCommitted || table.TargetConsistency == ReadConsistencyMode.ReadCommitted);
+
+    /// <summary>The source schema the tables were planned from.</summary>
+    public DatabaseSchema? SourceSchema { get; init; }
+
+    /// <summary>The target schema the tables were planned from.</summary>
+    public DatabaseSchema? TargetSchema { get; init; }
 }
 
 /// <summary>A table offered for data comparison, with how it would be matched.</summary>
